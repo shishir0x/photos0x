@@ -26,7 +26,6 @@
 
 - [Overview](#overview)
 - [Key Features](#key-features)
-- [Application Demonstration](#application-demonstration)
 - [Installation and Downloads](#installation-and-downloads)
   - [Prebuilt Binaries](#prebuilt-binaries)
   - [macOS Installation](#macos)
@@ -98,14 +97,6 @@ gotohp communicates directly with Google's native mobile client endpoints. It ha
 - **Dual Operating Modes**:
   - **Desktop GUI**: Native desktop window built with Wails v3, Vue 3, TypeScript, and Tailwind CSS.
   - **Headless CLI**: Standalone, lightweight executable compiled without GUI or webview libraries, featuring a rich terminal UI (TUI) powered by Bubbletea.
-
----
-
-## Application Demonstration
-
-The desktop application provides real-time progress metrics, active upload speeds, individual thread monitors, and an interactive results drawer:
-
-![gotohp UI demo](readme_assets/app_demo.webp)
 
 ---
 
