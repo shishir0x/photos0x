@@ -16,8 +16,12 @@ import (
 
 // writeTempFile creates a temporary file containing n zero bytes.
 func writeTempUploadTestFile(t *testing.T, n int) string {
+	return writeTempUploadTestNamedFile(t, n, "upload-test-*.bin")
+}
+
+func writeTempUploadTestNamedFile(t *testing.T, n int, pattern string) string {
 	t.Helper()
-	f, err := os.CreateTemp(t.TempDir(), "upload-test-*.bin")
+	f, err := os.CreateTemp(t.TempDir(), pattern)
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
@@ -431,3 +435,96 @@ func TestUploadLivePhotoComponent_AcquiresFreshTokenPerAttempt(t *testing.T) {
 		t.Errorf("expected >=2 token calls, got %d", tc)
 	}
 }
+
+// ── Large file size header formatting ─────────────────────────────────────────
+
+func TestGetUploadToken_LargeFileSizeHeader(t *testing.T) {
+	var capturedHeader string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedHeader = r.Header.Get("X-Upload-Content-Length")
+		w.Header().Set("X-GUploader-UploadID", "mock-session-123")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	api := mockUploadAPI(t, srv)
+	largeSize := int64(5368709120) // 5 GiB (> 2 GiB / math.MaxInt32)
+
+	token, err := api.GetUploadToken("synthetic-hash", largeSize)
+	if err != nil {
+		t.Fatalf("GetUploadToken failed: %v", err)
+	}
+	if token != "mock-session-123" {
+		t.Errorf("expected token mock-session-123, got %s", token)
+	}
+	expectedLen := "5368709120"
+	if capturedHeader != expectedLen {
+		t.Errorf("expected X-Upload-Content-Length header %s, got %s", expectedLen, capturedHeader)
+	}
+}
+
+// ── BearerToken refreshes before expiration ───────────────────────────────────
+
+func TestBearerToken_RefreshesBeforeExpiry(t *testing.T) {
+	authCalls := int32(0)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&authCalls, 1)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Auth=fresh-token-after-refresh\nExpiry=9999999999\n"))
+	}))
+	defer srv.Close()
+
+	api := mockUploadAPI(t, srv)
+	// Token expires in 2 minutes (less than 5-minute safety buffer)
+	nearExpiry := time.Now().Unix() + 120
+	api.authResponseCache = map[string]string{
+		"Expiry": fmt.Sprintf("%d", nearExpiry),
+		"Auth":   "almost-expired-token",
+	}
+
+	token, err := api.BearerToken()
+	if err != nil {
+		t.Fatalf("BearerToken failed: %v", err)
+	}
+	if token != "fresh-token-after-refresh" {
+		t.Errorf("expected refreshed token 'fresh-token-after-refresh', got '%s'", token)
+	}
+	if atomic.LoadInt32(&authCalls) != 1 {
+		t.Errorf("expected 1 auth refresh call, got %d", atomic.LoadInt32(&authCalls))
+	}
+}
+
+// ── Video upload allows at most 2 retries ─────────────────────────────────────
+
+func TestUploadFileWithProgress_VideoMaxTwoRetries(t *testing.T) {
+	putCalls := int32(0)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			w.Header().Set("X-GUploader-UploadID", fmt.Sprintf("v-%d", atomic.AddInt32(&putCalls, 0)+1))
+			w.WriteHeader(http.StatusOK)
+		} else if r.Method == http.MethodPut {
+			atomic.AddInt32(&putCalls, 1)
+			http.Error(w, "error", http.StatusInternalServerError)
+		}
+	}))
+	defer srv.Close()
+
+	api := mockUploadAPI(t, srv)
+	videoFile := writeTempUploadTestNamedFile(t, 256, "upload-test-*.mp4")
+	sha1B64 := sha1UploadTestFileB64(t, videoFile)
+	fi, _ := os.Stat(videoFile)
+
+	_, err := api.UploadFileWithProgress(context.Background(), videoFile, sha1B64, fi.Size(), nil)
+	if err == nil {
+		t.Fatal("expected failure after exhausting retries")
+	}
+
+	// 1 initial attempt + 2 retries = 3 attempts total
+	const expectedVideoAttempts = 3
+	if putCalls != expectedVideoAttempts {
+		t.Errorf("video upload should make 2 retries (total %d attempts), got %d attempts", expectedVideoAttempts, putCalls)
+	}
+}
+
+

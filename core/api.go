@@ -34,6 +34,7 @@ type Api struct {
 	authResponseCache map[string]string
 	commitEndpoint    string
 	commitRetryConfig *RetryConfig
+	uploadRetryConfig *RetryConfig
 	saver             bool
 	useQuota          bool
 }
@@ -120,6 +121,8 @@ func newAPIFromCredential(credentials string, proxy string) (*Api, error) {
 	return api, nil
 }
 
+const tokenExpiryMarginSec = 300 // Refresh token 5 minutes before expiry so long uploads have full validity
+
 func (a *Api) BearerToken() (string, error) {
 	expiryStr := a.authResponseCache["Expiry"]
 	expiry, err := strconv.ParseInt(expiryStr, 10, 64)
@@ -127,7 +130,7 @@ func (a *Api) BearerToken() (string, error) {
 		return "", fmt.Errorf("invalid expiry time: %w", err)
 	}
 
-	if expiry <= time.Now().Unix() {
+	if expiry <= time.Now().Unix()+tokenExpiryMarginSec {
 		resp, err := a.getAuthToken()
 		if err != nil {
 			return "", fmt.Errorf("failed to get auth token: %w", err)
@@ -266,7 +269,7 @@ func (a *Api) GetUploadToken(shaHashB64 string, fileSize int64) (string, error) 
 		"User-Agent":              a.userAgent,
 		"Authorization":           "Bearer " + bearerToken,
 		"X-Goog-Hash":             "sha1=" + shaHashB64,
-		"X-Upload-Content-Length": strconv.Itoa(int(fileSize)),
+		"X-Upload-Content-Length": strconv.FormatInt(fileSize, 10),
 	}
 
 	// Create the request
@@ -402,6 +405,11 @@ func (a *Api) UploadFile(ctx context.Context, filePath string, sha1HashB64 strin
 // fileSize is the exact byte count of the file.
 func (a *Api) UploadFileWithProgress(ctx context.Context, filePath string, sha1HashB64 string, fileSize int64, onProgress UploadProgressCallback) (ScottyFinalizeToken, error) {
 	retryConfig := DefaultRetryConfig()
+	if a.uploadRetryConfig != nil {
+		retryConfig = *a.uploadRetryConfig
+	} else if isVideoFile(filePath) {
+		retryConfig.MaxRetries = 2
+	}
 
 	var lastErr error
 	for attempt := 0; attempt <= retryConfig.MaxRetries; attempt++ {

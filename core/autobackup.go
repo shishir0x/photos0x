@@ -15,8 +15,10 @@ import (
 )
 
 const (
-	autoBackupDebounce = 5 * time.Second
-	maxWatchedDirs     = 500
+	autoBackupDebounce         = 5 * time.Second
+	autoBackupNotReadyDebounce = 20 * time.Second
+	maxWatchedDirs             = 500
+	maxConsecutiveFailures     = 10
 )
 
 type backupFailureInfo struct {
@@ -277,6 +279,11 @@ func (m *AutoBackupManager) shouldSkipFailure(path string, size int64, modTime i
 	if rec.lastSize != size || rec.lastModTime != modTime {
 		delete(m.failures, abs)
 		return false
+	}
+
+	// If maximum consecutive failures reached, quarantine file until modified or manually rescanned
+	if rec.consecutiveFailures >= maxConsecutiveFailures {
+		return true
 	}
 
 	// If backoff window has not elapsed, skip it
@@ -622,7 +629,7 @@ func (m *AutoBackupManager) flush() {
 			m.pending[rp] = struct{}{}
 		}
 		if m.debounce == nil && !m.stopped {
-			m.debounce = time.AfterFunc(autoBackupDebounce, m.flush)
+			m.debounce = time.AfterFunc(autoBackupNotReadyDebounce, m.flush)
 		}
 		m.mu.Unlock()
 	}

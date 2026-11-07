@@ -397,6 +397,22 @@ func (m *UploadManager) createAlbumsFromDirectories(albumManager *AlbumManager, 
 	}
 }
 
+var supportedVideoFormats = map[string]bool{
+	"3gp": true, "3g2": true, "asf": true, "avi": true, "divx": true,
+	"m2t": true, "m2ts": true, "m4v": true, "mkv": true, "mmv": true,
+	"mod": true, "mov": true, "mp4": true, "mpg": true, "mpeg": true,
+	"mts": true, "tod": true, "wmv": true, "ts": true, "webm": true,
+}
+
+// isVideoFile checks if a file extension corresponds to a video format
+func isVideoFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	if ext == "" {
+		return false
+	}
+	return supportedVideoFormats[ext[1:]]
+}
+
 // supportedFormats is a map of file extensions supported by Google Photos (O(1) lookup)
 var supportedFormats = map[string]bool{
 	// Photo formats

@@ -417,3 +417,41 @@ func TestAutoBackupFailureBackoff(t *testing.T) {
 	}
 }
 
+func TestAutoBackupMaxFailureQuarantine(t *testing.T) {
+	tempDir := t.TempDir()
+	testFile := filepath.Join(tempDir, "looping_video.mp4")
+	if err := os.WriteFile(testFile, []byte("fake video content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := os.Stat(testFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	abManager := NewAutoBackupManager(nil, slog.Default(), nil)
+
+	// Simulate 10 consecutive failures
+	for i := 0; i < 10; i++ {
+		abManager.recordFailure(testFile, errors.New("scotty stream error"))
+	}
+
+	abs, _ := filepath.Abs(testFile)
+	abManager.mu.Lock()
+	rec := abManager.failures[abs]
+	// Force nextRetry to be in the past so backoff window is elapsed
+	rec.nextRetry = time.Now().Add(-1 * time.Hour)
+	abManager.mu.Unlock()
+
+	// Should still be skipped because max consecutive failures (quarantine) is reached
+	if !abManager.shouldSkipFailure(testFile, fi.Size(), fi.ModTime().Unix()) {
+		t.Fatal("expected file with >=10 failures to be quarantined even after backoff elapsed")
+	}
+
+	// But if file size changes, quarantine must reset
+	if abManager.shouldSkipFailure(testFile, fi.Size()+100, fi.ModTime().Unix()) {
+		t.Fatal("expected modified file size to break quarantine")
+	}
+}
+
+
