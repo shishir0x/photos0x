@@ -1,6 +1,6 @@
 [Desktop Entry]
 Version=1.0
-Name=gotohp
+Name=photos0x
 Comment=Google Photos Unofficial Client
 # The Exec line includes %u to pass the URL to the application
 Exec=/usr/local/bin/gotohp %u

@@ -3,21 +3,21 @@
 <plist version="1.0">
 	<dict>
 		<key>CFBundleDisplayName</key>
-		<string>gotohp</string>
+		<string>photos0x</string>
 		<key>CFBundleExecutable</key>
 		<string>gotohp</string>
 		<key>CFBundleGetInfoString</key>
 		<string>This is a comment</string>
 		<key>CFBundleIdentifier</key>
-		<string>com.xob0t.gotohp</string>
+		<string>com.shishir0x.photos0x</string>
 		<key>CFBundleName</key>
-		<string>gotohp</string>
+		<string>photos0x</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
-		<string>0.11.1</string>
+		<string>0.9.0</string>
 		<key>CFBundleVersion</key>
-		<string>0.11.1</string>
+		<string>0.9.0</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>MinimumOSVersion</key>

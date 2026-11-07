@@ -8,13 +8,13 @@
     !define INFO_PROJECTNAME "gotohp"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "xob0t"
+    !define INFO_COMPANYNAME "shishir0x"
 !endif
 !ifndef INFO_PRODUCTNAME
-    !define INFO_PRODUCTNAME "gotohp"
+    !define INFO_PRODUCTNAME "photos0x"
 !endif
 !ifndef INFO_PRODUCTVERSION
-    !define INFO_PRODUCTVERSION "0.11.1"
+    !define INFO_PRODUCTVERSION "0.9.0"
 !endif
 !ifndef INFO_COPYRIGHT
     !define INFO_COPYRIGHT "© now, My Company"
