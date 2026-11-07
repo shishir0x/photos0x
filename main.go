@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"app/core"
@@ -58,6 +59,15 @@ func runGUI() {
 		},
 		Windows: application.WindowsOptions{
 			DisableQuitOnLastWindowClosed: true,
+			WebviewUserDataPath: func() string {
+				dir, err := os.UserConfigDir()
+				if err != nil {
+					dir = os.Getenv("APPDATA")
+				}
+				dataDir := filepath.Join(dir, "photos0x", "webview")
+				_ = os.MkdirAll(dataDir, 0o755)
+				return dataDir
+			}(),
 		},
 		Linux: application.LinuxOptions{
 			DisableQuitOnLastWindowClosed: true,
