@@ -6,13 +6,13 @@
 
 **Cross-platform desktop and command-line client for Google Photos with batch uploads, album organization, Apple Live Photo pairing, and unlimited storage options.**
 
-[![Latest Release](https://img.shields.io/github/v/release/shishir0x/gotohp?color=blue&label=release)](https://github.com/shishir0x/gotohp/releases)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/shishir0x/gotohp/build.yml?branch=main&label=build)](https://github.com/shishir0x/gotohp/actions/workflows/build.yml)
+[![Latest Release](https://img.shields.io/github/v/release/shishir0x/photos0x?color=blue&label=release)](https://github.com/shishir0x/photos0x/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/shishir0x/photos0x/build.yml?branch=main&label=build)](https://github.com/shishir0x/photos0x/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](go.mod)
 [![Platform Support](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux-brightgreen)](#installation-and-downloads)
 
-[Downloads](https://github.com/shishir0x/gotohp/releases) • [Quick Start](#quick-start) • [CLI Documentation](#command-line-documentation) • [Configuration](#configuration-and-credentials) • [Building from Source](#development-and-building-from-source) • [Report Issue](https://github.com/shishir0x/gotohp/issues)
+[Downloads](https://github.com/shishir0x/photos0x/releases) • [Quick Start](#quick-start) • [CLI Documentation](#command-line-documentation) • [Configuration](#configuration-and-credentials) • [Building from Source](#development-and-building-from-source) • [Report Issue](https://github.com/shishir0x/photos0x/issues)
 
 </div>
 
@@ -111,15 +111,15 @@ The desktop application provides real-time progress metrics, active upload speed
 
 ## Installation and Downloads
 
-Precompiled binaries for all supported platforms are published on the [GitHub Releases page](https://github.com/shishir0x/gotohp/releases).
+Precompiled binaries for all supported platforms are published on the [GitHub Releases page](https://github.com/shishir0x/photos0x/releases).
 
 ### Prebuilt Binaries
 
 | Operating System | Architecture | GUI Package | Standalone CLI Binary |
 | :--- | :--- | :--- | :--- |
-| **Windows** | x86_64 (64-bit) | `gotohp-x64.exe` | `gotohp-cli-x64.exe` |
-| **macOS** | Universal (Intel & Apple Silicon) | `gotohp-macos-universal.dmg`<br>`gotohp-macos-universal.zip` | `gotohp-cli-macos-universal` |
-| **Linux** | x86_64 (64-bit) | `gotohp_amd64.AppImage`<br>`gotohp_amd64.deb` | `gotohp-cli_amd64`<br>`gotohp-cli_amd64.deb` |
+| **Windows** | x86_64 (64-bit) | `photos0x-x64.exe` | `photos0x-cli-x64.exe` |
+| **macOS** | Universal (Intel & Apple Silicon) | `photos0x-macos-universal.dmg`<br>`photos0x-macos-universal.zip` | `photos0x-cli-macos-universal` |
+| **Linux** | x86_64 (64-bit) | `photos0x_amd64.AppImage`<br>`photos0x_amd64.deb` | `photos0x-cli_amd64`<br>`photos0x-cli_amd64.deb` |
 
 Every release includes a `SHA256SUMS.txt` file to verify package integrity.
 
@@ -127,29 +127,29 @@ Every release includes a `SHA256SUMS.txt` file to verify package integrity.
 
 ### macOS
 
-1. Download `gotohp-macos-universal.dmg` from [Releases](https://github.com/shishir0x/gotohp/releases).
-2. Open the `.dmg` file and drag **gotohp** to your `Applications` folder.
-3. *First launch notice*: Because gotohp is open-source and not signed with an Apple Developer ID certificate, macOS Gatekeeper may present a security prompt. Right-click (or Control-click) `gotohp.app`, select **Open**, and confirm when prompted.
+1. Download `photos0x-macos-universal.dmg` from [Releases](https://github.com/shishir0x/photos0x/releases).
+2. Open the `.dmg` file and drag **photos0x** to your `Applications` folder.
+3. *First launch notice*: Because photos0x is open-source and not signed with an Apple Developer ID certificate, macOS Gatekeeper may present a security prompt. Right-click (or Control-click) `photos0x.app`, select **Open**, and confirm when prompted.
 
 ### Windows
 
-1. Download `gotohp-x64.exe` from [Releases](https://github.com/shishir0x/gotohp/releases).
-2. Place the executable in your preferred directory (e.g., `C:\Program Files\gotohp` or `D:\Tools\gotohp`).
-3. Double-click `gotohp-x64.exe` to launch. No installer is required.
+1. Download `photos0x-x64.exe` from [Releases](https://github.com/shishir0x/photos0x/releases).
+2. Place the executable in your preferred directory (e.g., `C:\Program Files\photos0x` or `D:\Tools\photos0x`).
+3. Double-click `photos0x-x64.exe` to launch. No installer is required.
 
 ### Linux
 
 #### Option A: AppImage (Universal)
 ```bash
-wget https://github.com/shishir0x/gotohp/releases/latest/download/gotohp_amd64.AppImage
-chmod +x gotohp_amd64.AppImage
-./gotohp_amd64.AppImage
+wget https://github.com/shishir0x/photos0x/releases/latest/download/photos0x_amd64.AppImage
+chmod +x photos0x_amd64.AppImage
+./photos0x_amd64.AppImage
 ```
 
 #### Option B: Debian / Ubuntu Package
 ```bash
-wget https://github.com/shishir0x/gotohp/releases/latest/download/gotohp_amd64.deb
-sudo dpkg -i gotohp_amd64.deb
+wget https://github.com/shishir0x/photos0x/releases/latest/download/photos0x_amd64.deb
+sudo dpkg -i photos0x_amd64.deb
 sudo apt-get install -f # resolve any missing runtime dependencies
 ```
 
@@ -161,12 +161,12 @@ If you are running on a server, NAS (Synology, TrueNAS, Unraid), or headless con
 
 ```bash
 # Example for Linux 64-bit
-curl -LO https://github.com/shishir0x/gotohp/releases/latest/download/gotohp-cli_amd64
-chmod +x gotohp-cli_amd64
-sudo mv gotohp-cli_amd64 /usr/local/bin/gotohp-cli
+curl -LO https://github.com/shishir0x/photos0x/releases/latest/download/photos0x-cli_amd64
+chmod +x photos0x-cli_amd64
+sudo mv photos0x-cli_amd64 /usr/local/bin/photos0x-cli
 
 # Test installation
-gotohp-cli version
+photos0x-cli version
 ```
 
 ---
@@ -468,7 +468,7 @@ If you run Google Photos ReVanced with GmsCore:
 ### Repository Setup
 
 ```bash
-git clone https://github.com/shishir0x/gotohp.git
+git clone https://github.com/shishir0x/photos0x.git
 cd gotohp
 ```
 
@@ -603,7 +603,7 @@ Contributions are welcome! Please follow these guidelines:
    - Use [Conventional Commits](https://www.conventionalcommits.org) titles with lowercase descriptions: `<type>(<scope>): <description>` (e.g. `feat(cli): add exclude flag` or `fix(settings): make rows clickable`).
    - Run tests before opening a PR: `go test ./...`.
 2. **Issue Reporting**:
-   - Report bugs or request features through the [GitHub Issue Tracker](https://github.com/shishir0x/gotohp/issues).
+   - Report bugs or request features through the [GitHub Issue Tracker](https://github.com/shishir0x/photos0x/issues).
    - Please include your OS version, binary type (GUI or CLI), and error output (with sensitive tokens redacted).
 
 ---
