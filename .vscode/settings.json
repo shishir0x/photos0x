@@ -1,6 +1,0 @@
-{
-    "go.testFlags": [
-        "-timeout=2m"
-    ],
-    "antigravity.enableInlineDiff": false,
-}
