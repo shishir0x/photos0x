@@ -1,4 +1,4 @@
-# gotohp
+# photos0x
 
 <div align="center">
 
@@ -18,7 +18,7 @@
 
 ---
 
-> **Disclaimer**: **gotohp** is an independent, unofficial open-source project and is **not affiliated with, maintained, authorized, or endorsed by Google LLC**. Google Photos is a registered trademark of Google LLC. Use of this application is at your own discretion and must comply with Google's Terms of Service.
+> **Disclaimer**: **photos0x** (formerly gotohp) is an independent, unofficial open-source project and is **not affiliated with, maintained, authorized, or endorsed by Google LLC**. Google Photos is a registered trademark of Google LLC. Use of this application is at your own discretion and must comply with Google's Terms of Service.
 
 ---
 

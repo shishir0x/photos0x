@@ -5,13 +5,13 @@ version: "3"
 
 # This information is used to generate the build assets.
 info:
-  companyName: "xob0t" # The name of the company
-  productName: "gotohp" # The name of the application
-  productIdentifier: "com.xob0t.gotohp" # The unique product identifier
+  companyName: "shishir0x" # The name of the company
+  productName: "photos0x" # The name of the application
+  productIdentifier: "com.shishir0x.photos0x" # The unique product identifier
   description: "Google Photos Unofficial Client" # The application description
   copyright: "" # Copyright text
   comments: "" # Comments
-  version: "0.11.1" # The application version, managed by Release Please (x-release-please-version)
+  version: "0.12.0" # The application version, managed by Release Please (x-release-please-version)
 
 # Dev mode configuration
 dev_mode:

@@ -10,5 +10,5 @@ build/ios/xcode/gen/
 build/android/overlay.json
 build/android/gen/
 config.yaml
-wails_windows_amd64.syso
+*.syso
 .claude/settings.local.json

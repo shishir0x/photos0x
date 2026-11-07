@@ -23,13 +23,13 @@ var assets embed.FS
 //go:embed build/appicon.png
 var appIcon []byte
 
-var title = "gotohp v" + getAppVersion()
+var title = "photos0x v" + getAppVersion()
 
 func main() {
 	// Run the CLI when the arguments name one of its commands; otherwise start the GUI.
 	if cli.IsCLIInvocation(os.Args[1:]) {
 		os.Exit(cli.Run(os.Args[1:], cli.Info{
-			ExecutableName: "gotohp",
+			ExecutableName: "photos0x",
 			HasGUI:         true,
 			Version:        getAppVersion(),
 		}))
@@ -44,7 +44,7 @@ func runGUI() {
 	var mainWindow *application.WebviewWindow
 	configManager := &core.ConfigManager{}
 	wailsApp := application.New(application.Options{
-		Name:        "com.xob0t.gotohp",
+		Name:        "com.shishir0x.photos0x",
 		Description: "Google Photos unofficial client",
 		Icon:        appIcon,
 		Services: []application.Service{
@@ -63,7 +63,7 @@ func runGUI() {
 			DisableQuitOnLastWindowClosed: true,
 		},
 		SingleInstance: &application.SingleInstanceOptions{
-			UniqueID: "com.xob0t.gotohp",
+			UniqueID: "com.shishir0x.photos0x",
 			OnSecondInstanceLaunch: func(data application.SecondInstanceData) {
 				if mainWindow != nil {
 					mainWindow.Show()
@@ -200,10 +200,10 @@ func runGUI() {
 	if len(appIcon) > 0 {
 		systemTray.SetIcon(appIcon)
 	}
-	systemTray.SetTooltip("gotohp - Google Photos Backup")
+	systemTray.SetTooltip("photos0x - Google Photos Backup")
 
 	trayMenu := application.NewMenu()
-	trayMenu.Add("Open gotohp").OnClick(func(ctx *application.Context) {
+	trayMenu.Add("Open photos0x").OnClick(func(ctx *application.Context) {
 		window.Show()
 		window.Focus()
 	})

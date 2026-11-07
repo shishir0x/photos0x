@@ -55,7 +55,7 @@ type AutoBackupConfig struct {
 	IntervalMinutes int      `json:"intervalMinutes" koanf:"interval_minutes"`
 }
 
-// Config is the on-disk layout of gotohp.config.
+// Config is the on-disk layout of photos0x.config (or legacy gotohp.config).
 type Config struct {
 	Account     AccountConfig    `json:"account" koanf:"account"`
 	Preferences Preferences      `json:"preferences" koanf:"preferences"`
@@ -650,7 +650,7 @@ func listADBDevices() ([]string, error) {
 // sqlite3 binary, so the database is queried locally instead of on-device. The
 // returned cleanup function removes the temporary files.
 func pullAccountsDB(device string) (string, func(), error) {
-	tmpDir, err := os.MkdirTemp("", "gotohp-adb-")
+	tmpDir, err := os.MkdirTemp("", "photos0x-adb-")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
@@ -742,7 +742,7 @@ func cleanADBError(out string) string {
 }
 
 // determineConfigPath picks the config location when none was given explicitly:
-// a portable gotohp.config next to the executable or in the working directory
+// a portable photos0x.config / gotohp.config next to the executable or in the working directory
 // wins over the user config dir.
 func determineConfigPath() {
 	exePath, err := os.Executable()
@@ -761,15 +761,28 @@ func determineConfigPath() {
 		}
 	}
 
-	// Fall back to default location
-	userConfigDir := filepath.Join(getUserConfigDir(), "/gotohp")
-	ConfigPath = filepath.Join(userConfigDir, "gotohp.config")
+	// Fall back to default location: check photos0x first, then gotohp, then default to photos0x
+	userConfigDir := getUserConfigDir()
+	photos0xPath := filepath.Join(userConfigDir, "photos0x", "photos0x.config")
+	if _, err := os.Stat(photos0xPath); err == nil {
+		ConfigPath = photos0xPath
+		return
+	}
+	gotohpPath := filepath.Join(userConfigDir, "gotohp", "gotohp.config")
+	if _, err := os.Stat(gotohpPath); err == nil {
+		ConfigPath = gotohpPath
+		return
+	}
+
+	ConfigPath = photos0xPath
 }
 
 func existingLocalConfig(dir string) (string, bool) {
-	path := filepath.Join(dir, "gotohp.config")
-	if _, err := os.Stat(path); err == nil {
-		return path, true
+	for _, name := range []string{"photos0x.config", "gotohp.config"} {
+		path := filepath.Join(dir, name)
+		if _, err := os.Stat(path); err == nil {
+			return path, true
+		}
 	}
 	return "", false
 }
@@ -914,7 +927,7 @@ func saveAppConfigLocked() error {
 
 func writeConfigAtomically(path string, contents []byte) error {
 	directory := filepath.Dir(path)
-	temporary, err := os.CreateTemp(directory, ".gotohp-config-*")
+	temporary, err := os.CreateTemp(directory, ".photos0x-config-*")
 	if err != nil {
 		return err
 	}

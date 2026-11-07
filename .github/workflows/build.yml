@@ -84,47 +84,63 @@ jobs:
           # create:dmg runs the packaging tool on the existing bundle without
           # rebuilding (so it keeps the universal binary produced above).
           wails3 task darwin:create:dmg
-          mv bin/gotohp.dmg release/gotohp-macos-universal.dmg
+          if [ -f bin/photos0x.dmg ]; then
+            cp bin/photos0x.dmg release/photos0x-macos-universal.dmg
+            cp bin/photos0x.dmg release/gotohp-macos-universal.dmg
+          elif [ -f bin/gotohp.dmg ]; then
+            cp bin/gotohp.dmg release/photos0x-macos-universal.dmg
+            cp bin/gotohp.dmg release/gotohp-macos-universal.dmg
+          fi
 
           # Build standalone CLI binary without Wails/WebView dependencies
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -tags cli -trimpath -buildvcs=false -ldflags="-w -s" -o bin/gotohp-cli-amd64
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags cli -trimpath -buildvcs=false -ldflags="-w -s" -o bin/gotohp-cli-arm64
-          lipo -create -output release/gotohp-cli-macos-universal bin/gotohp-cli-amd64 bin/gotohp-cli-arm64
-          rm bin/gotohp-cli-amd64 bin/gotohp-cli-arm64
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -tags cli -trimpath -buildvcs=false -ldflags="-w -s" -o bin/cli-amd64
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags cli -trimpath -buildvcs=false -ldflags="-w -s" -o bin/cli-arm64
+          lipo -create -output release/photos0x-cli-macos-universal bin/cli-amd64 bin/cli-arm64
+          cp release/photos0x-cli-macos-universal release/gotohp-cli-macos-universal
+          rm -f bin/cli-amd64 bin/cli-arm64
 
           # Create zip file of the .app bundle
           cd bin
-          zip -r ../release/gotohp-macos-universal.zip gotohp.app
+          if [ -d photos0x.app ]; then
+            zip -r ../release/photos0x-macos-universal.zip photos0x.app
+            cp ../release/photos0x-macos-universal.zip ../release/gotohp-macos-universal.zip
+          elif [ -d gotohp.app ]; then
+            zip -r ../release/photos0x-macos-universal.zip gotohp.app
+            cp ../release/photos0x-macos-universal.zip ../release/gotohp-macos-universal.zip
+          fi
           cd ..
 
       - name: Build macOS App (Debug)
         if: (github.event_name == 'workflow_dispatch' && inputs.build_debug) || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
         run: |
           # Clean bin directory
-          rm -rf bin/gotohp.app
-          rm -f bin/gotohp
+          rm -rf bin/*.app
+          rm -f bin/photos0x bin/gotohp
 
           # Build debug version (creates binary, not .app)
           wails3 build DEV=true
 
           # Rename debug binary
-          mv bin/gotohp release/gotohp-macos-universal_debug
+          if [ -f bin/photos0x ]; then
+            cp bin/photos0x release/photos0x-macos-universal_debug
+          else
+            cp bin/gotohp release/photos0x-macos-universal_debug
+          fi
 
       - name: Upload macOS Release Artifact
         uses: actions/upload-artifact@v7
         with:
           name: macos-release
           path: |
-            release/gotohp-macos-universal.dmg
-            release/gotohp-macos-universal.zip
-            release/gotohp-cli-macos-universal
+            release/*macos-universal*
+            !release/*_debug*
 
       - name: Upload macOS Debug Artifact
         if: (github.event_name == 'workflow_dispatch' && inputs.build_debug) || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
         uses: actions/upload-artifact@v7
         with:
           name: macos-debug
-          path: release/gotohp-macos-universal_debug
+          path: release/*macos-universal_debug*
 
   build-windows:
     name: Build Windows
@@ -171,39 +187,52 @@ jobs:
 
           # Build the GUI application with production flags
           task windows:build
-          Move-Item -Path "bin\gotohp.exe" -Destination "release\gotohp-x64.exe"
+          if (Test-Path "bin\photos0x.exe") {
+            Copy-Item -Path "bin\photos0x.exe" -Destination "release\photos0x-x64.exe"
+            Copy-Item -Path "bin\photos0x.exe" -Destination "release\gotohp-x64.exe"
+          } elseif (Test-Path "bin\gotohp.exe") {
+            Copy-Item -Path "bin\gotohp.exe" -Destination "release\photos0x-x64.exe"
+            Copy-Item -Path "bin\gotohp.exe" -Destination "release\gotohp-x64.exe"
+          }
 
           # Build standalone CLI binary without Wails/WebView dependencies
           $env:CGO_ENABLED="0"
           $env:GOOS="windows"
           $env:GOARCH="amd64"
-          go build -tags cli -trimpath -buildvcs=false -ldflags="-w -s" -o "release\gotohp-cli-x64.exe"
+          go build -tags cli -trimpath -buildvcs=false -ldflags="-w -s" -o "release\photos0x-cli-x64.exe"
+          Copy-Item -Path "release\photos0x-cli-x64.exe" -Destination "release\gotohp-cli-x64.exe"
 
       - name: Build Windows App (Debug)
         if: (github.event_name == 'workflow_dispatch' && inputs.build_debug) || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
         shell: pwsh
         run: |
           # Clean bin directory
-          Remove-Item -Path "bin\gotohp.exe" -ErrorAction SilentlyContinue
-          Remove-Item -Path "bin\gotohp-cli.exe" -ErrorAction SilentlyContinue
+          Remove-Item -Path "bin\*.exe" -ErrorAction SilentlyContinue
 
           # Build GUI debug version
           wails3 build DEV=true
-          Move-Item -Path "bin\gotohp.exe" -Destination "release\gotohp-x64_debug.exe"
+          if (Test-Path "bin\photos0x.exe") {
+            Copy-Item -Path "bin\photos0x.exe" -Destination "release\photos0x-x64_debug.exe"
+            Copy-Item -Path "bin\photos0x.exe" -Destination "release\gotohp-x64_debug.exe"
+          } else {
+            Copy-Item -Path "bin\gotohp.exe" -Destination "release\photos0x-x64_debug.exe"
+            Copy-Item -Path "bin\gotohp.exe" -Destination "release\gotohp-x64_debug.exe"
+          }
 
           # Build CLI debug version without Wails/WebView dependencies
           $env:CGO_ENABLED="0"
           $env:GOOS="windows"
           $env:GOARCH="amd64"
-          go build -tags cli -buildvcs=false -gcflags=all="-l" -o "release\gotohp-cli-x64_debug.exe"
+          go build -tags cli -buildvcs=false -gcflags=all="-l" -o "release\photos0x-cli-x64_debug.exe"
+          Copy-Item -Path "release\photos0x-cli-x64_debug.exe" -Destination "release\gotohp-cli-x64_debug.exe"
 
       - name: Upload Windows Release Artifact
         uses: actions/upload-artifact@v7
         with:
           name: windows-release
           path: |
-            release/gotohp-x64.exe
-            release/gotohp-cli-x64.exe
+            release/*-x64.exe
+            !release/*_debug.exe
 
       - name: Upload Windows Debug Artifact
         if: (github.event_name == 'workflow_dispatch' && inputs.build_debug) || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
@@ -211,8 +240,7 @@ jobs:
         with:
           name: windows-debug
           path: |
-            release/gotohp-x64_debug.exe
-            release/gotohp-cli-x64_debug.exe
+            release/*-x64_debug.exe
 
   build-linux:
     name: Build Linux
@@ -261,51 +289,63 @@ jobs:
           wails3 task package
 
           # Generate deb package
-          wails3 tool package -name gotohp -format deb -config ./build/linux/nfpm/nfpm.yaml -out ./release
+          wails3 tool package -name photos0x -format deb -config ./build/linux/nfpm/nfpm.yaml -out ./release || wails3 tool package -name gotohp -format deb -config ./build/linux/nfpm/nfpm.yaml -out ./release
 
           # Build CLI binary and package without Wails/WebView dependencies
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags cli -trimpath -buildvcs=false -ldflags="-w -s" -o "bin/gotohp-cli"
-          cp bin/gotohp-cli "release/gotohp-cli_amd64"
-          nfpm package --packager deb --config ./build/linux/nfpm/nfpm-cli.yaml --target ./release/gotohp-cli_amd64.deb
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags cli -trimpath -buildvcs=false -ldflags="-w -s" -o "bin/photos0x-cli"
+          cp bin/photos0x-cli "release/photos0x-cli_amd64"
+          cp bin/photos0x-cli "release/gotohp-cli_amd64"
+          if [ -f "./build/linux/nfpm/nfpm-cli.yaml" ]; then
+            nfpm package --packager deb --config ./build/linux/nfpm/nfpm-cli.yaml --target ./release/photos0x-cli_amd64.deb || true
+            [ -f ./release/photos0x-cli_amd64.deb ] && cp ./release/photos0x-cli_amd64.deb ./release/gotohp-cli_amd64.deb || true
+          fi
 
           # Generate AppImage
-          wails3 package
-          mv bin/gotohp-x86_64.AppImage "release/gotohp_amd64.AppImage"
-          rm -f bin/gotohp-x86_64.AppImage
+          wails3 package || true
+          for appimg in bin/*AppImage; do
+            [ -f "$appimg" ] && cp "$appimg" "release/photos0x_amd64.AppImage" && cp "$appimg" "release/gotohp_amd64.AppImage"
+          done
 
           # Rename .deb file if needed
-          if [ -f "release/gotohp.deb" ]; then
-            mv "release/gotohp.deb" "release/gotohp_amd64.deb"
+          if [ -f "release/photos0x.deb" ]; then
+            cp "release/photos0x.deb" "release/photos0x_amd64.deb"
+            cp "release/photos0x.deb" "release/gotohp_amd64.deb"
+          elif [ -f "release/gotohp.deb" ]; then
+            cp "release/gotohp.deb" "release/photos0x_amd64.deb"
+            cp "release/gotohp.deb" "release/gotohp_amd64.deb"
           fi
 
       - name: Build Linux App (Debug)
         if: (github.event_name == 'workflow_dispatch' && inputs.build_debug) || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
         run: |
           # Clean bin directory
-          rm -f bin/gotohp
+          rm -f bin/photos0x bin/gotohp
 
           # Build debug version
           wails3 build DEV=true
 
           # Copy debug binary
-          cp bin/gotohp "release/gotohp_amd64_debug"
+          if [ -f bin/photos0x ]; then
+            cp bin/photos0x "release/photos0x_amd64_debug"
+          else
+            cp bin/gotohp "release/photos0x_amd64_debug"
+          fi
 
       - name: Upload Linux Release Artifact
         uses: actions/upload-artifact@v7
         with:
           name: linux-release
           path: |
-            release/gotohp_amd64.deb
-            release/gotohp_amd64.AppImage
-            release/gotohp-cli_amd64
-            release/gotohp-cli_amd64.deb
+            release/*.deb
+            release/*.AppImage
+            release/*-cli_amd64
 
       - name: Upload Linux Debug Artifact
         if: (github.event_name == 'workflow_dispatch' && inputs.build_debug) || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
         uses: actions/upload-artifact@v7
         with:
           name: linux-debug
-          path: release/gotohp_amd64_debug
+          path: release/*amd64_debug*
 
   release:
     name: Attach Release Assets

@@ -8,10 +8,10 @@ import (
 	"app/internal/cli"
 )
 
-// gotohp-cli is built without Wails, so it is CLI only.
+// photos0x-cli is built without Wails, so it is CLI only.
 func main() {
 	os.Exit(cli.Run(os.Args[1:], cli.Info{
-		ExecutableName: "gotohp-cli",
+		ExecutableName: "photos0x-cli",
 		HasGUI:         false,
 		Version:        getAppVersion(),
 	}))

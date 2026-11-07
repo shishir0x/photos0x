@@ -18,16 +18,33 @@ var (
 	appDB   *sql.DB
 )
 
-// DefaultDatabasePath resolves the location of the gotohp.db SQLite database
-// adhering to the same portable-mode and config directory rules as gotohp.config.
+// DefaultDatabasePath resolves the location of the photos0x.db SQLite database
+// adhering to the same portable-mode and config directory rules as photos0x.config / gotohp.config.
 func DefaultDatabasePath() string {
 	ensureConfigLoaded()
 	cfgDir := filepath.Dir(ConfigPath)
 	if cfgDir == "" || cfgDir == "." {
-		userConfigDir := filepath.Join(getUserConfigDir(), "gotohp")
-		return filepath.Join(userConfigDir, "gotohp.db")
+		userConfigDir := getUserConfigDir()
+		p1 := filepath.Join(userConfigDir, "photos0x", "photos0x.db")
+		if _, err := os.Stat(p1); err == nil {
+			return p1
+		}
+		p2 := filepath.Join(userConfigDir, "gotohp", "gotohp.db")
+		if _, err := os.Stat(p2); err == nil {
+			return p2
+		}
+		return p1
 	}
-	return filepath.Join(cfgDir, "gotohp.db")
+
+	p1 := filepath.Join(cfgDir, "photos0x.db")
+	if _, err := os.Stat(p1); err == nil {
+		return p1
+	}
+	p2 := filepath.Join(cfgDir, "gotohp.db")
+	if _, err := os.Stat(p2); err == nil {
+		return p2
+	}
+	return p1
 }
 
 // OpenDatabase opens or creates an SQLite database at dbPath and runs migrations.

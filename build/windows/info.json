@@ -1,14 +1,14 @@
 {
 	"fixed": {
-		"file_version": "0.11.1"
+		"file_version": "0.12.0"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "0.11.1",
-			"CompanyName": "xob0t",
+			"ProductVersion": "0.12.0",
+			"CompanyName": "shishir0x",
 			"FileDescription": "Google Photos Unofficial Client",
-			"LegalCopyright": "© now, My Company",
-			"ProductName": "gotohp",
+			"LegalCopyright": "© 2026",
+			"ProductName": "photos0x",
 			"Comments": "This is a comment"
 		}
 	}
