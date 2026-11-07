@@ -36,62 +36,34 @@ func normalizeHistoryKey(path string) string {
 	return clean
 }
 
-func defaultHistoryFilePath() string {
-	cfgDir := filepath.Dir(ConfigPath)
-	if cfgDir == "" || cfgDir == "." {
-		userConfigDir := filepath.Join(getUserConfigDir(), "gotohp")
-		return filepath.Join(userConfigDir, "autobackup_history.json")
-	}
-	return filepath.Join(cfgDir, "autobackup_history.json")
-}
-
-// NewAutoBackupHistory initializes the SQLite history store and automatically
-// migrates any pre-existing JSON history.
-func NewAutoBackupHistory(dbOrFilePath string) *AutoBackupHistory {
+// NewAutoBackupHistory initializes the SQLite history store using the app database,
+// or a custom/in-memory database path for isolated testing.
+func NewAutoBackupHistory(dbPath string) *AutoBackupHistory {
 	var db *sql.DB
 	var err error
 	ownsDB := false
 
-	if dbOrFilePath == "" {
+	if dbPath == ":memory:" {
+		db, _ = OpenDatabase(":memory:")
+		ownsDB = true
+	} else if dbPath != "" {
+		db, err = OpenDatabase(dbPath)
+		if err != nil {
+			db, _ = OpenDatabase(":memory:")
+		}
+		ownsDB = true
+	} else {
 		db, err = GetAppDatabase()
 		if err != nil {
-			// Fallback to in-memory if app db fails
 			db, _ = OpenDatabase(":memory:")
 			ownsDB = true
 		}
-	} else if dbOrFilePath == ":memory:" {
-		db, _ = OpenDatabase(":memory:")
-		ownsDB = true
-	} else {
-		ownsDB = true
-		// If path ends in .json or does not end in .db, treat as migration / custom path
-		if strings.HasSuffix(strings.ToLower(dbOrFilePath), ".json") {
-			dbPath := strings.TrimSuffix(dbOrFilePath, filepath.Ext(dbOrFilePath)) + ".db"
-			db, err = OpenDatabase(dbPath)
-			if err != nil {
-				db, _ = OpenDatabase(":memory:")
-			}
-			// Migrate the specific JSON file if present
-			_ = MigrateJSONHistory(db, dbOrFilePath)
-		} else {
-			db, err = OpenDatabase(dbOrFilePath)
-			if err != nil {
-				db, _ = OpenDatabase(":memory:")
-			}
-		}
 	}
 
-	h := &AutoBackupHistory{
+	return &AutoBackupHistory{
 		db:     db,
 		ownsDB: ownsDB,
 	}
-
-	// Default automatic migration of legacy autobackup_history.json
-	if dbOrFilePath == "" {
-		_ = MigrateJSONHistory(db, defaultHistoryFilePath())
-	}
-
-	return h
 }
 
 // NewAutoBackupHistoryWithDB creates an AutoBackupHistory instance using an existing db handle.

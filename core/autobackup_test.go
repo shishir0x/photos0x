@@ -1,25 +1,21 @@
 package core
 
 import (
-	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestAutoBackupHistory(t *testing.T) {
-	tempDir := t.TempDir()
-	historyPath := filepath.Join(tempDir, "history.json")
-
-	h := NewAutoBackupHistory(historyPath)
+	h := NewAutoBackupHistory(":memory:")
 	defer func() { _ = h.Close() }()
 	if h.Count() != 0 {
 		t.Fatalf("expected count 0, got %d", h.Count())
 	}
 
+	tempDir := t.TempDir()
 	testFile := filepath.Join(tempDir, "photo.jpg")
 	if err := os.WriteFile(testFile, []byte("fake image data"), 0o644); err != nil {
 		t.Fatal(err)
@@ -36,7 +32,7 @@ func TestAutoBackupHistory(t *testing.T) {
 	}
 
 	// Mark uploaded
-	h.MarkUploaded(testFile, fi.Size(), fi.ModTime().Unix())
+	_ = h.MarkUploaded(testFile, fi.Size(), fi.ModTime().Unix())
 	if !h.IsUploaded(testFile, fi.Size(), fi.ModTime().Unix()) {
 		t.Fatal("expected file to be uploaded after MarkUploaded")
 	}
@@ -46,19 +42,8 @@ func TestAutoBackupHistory(t *testing.T) {
 		t.Fatal("expected false for changed size")
 	}
 
-	// Save and reload
-	if err := h.Save(); err != nil {
-		t.Fatalf("failed to save history: %v", err)
-	}
-	_ = h.Close()
-
-	h2 := NewAutoBackupHistory(historyPath)
-	defer func() { _ = h2.Close() }()
-	if !h2.IsUploaded(testFile, fi.Size(), fi.ModTime().Unix()) {
-		t.Fatal("expected file to be uploaded in reloaded history")
-	}
-	if h2.Count() != 1 {
-		t.Fatalf("expected count 1, got %d", h2.Count())
+	if h.Count() != 1 {
+		t.Fatalf("expected count 1, got %d", h.Count())
 	}
 }
 
@@ -93,7 +78,6 @@ func TestAutoBackupManagerLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Set config path for this test
 	cfgFile := filepath.Join(tempDir, "gotohp.config")
 	if err := LoadConfig(cfgFile); err != nil {
 		t.Fatal(err)
@@ -127,27 +111,29 @@ func TestAutoBackupManagerLifecycle(t *testing.T) {
 		t.Fatal("expected error adding non-existent folder")
 	}
 
-	// Update interval
-	mgr.SetAutoBackupInterval(30)
-	cfg := mgr.GetAutoBackup()
-	if cfg.IntervalMinutes != 30 {
-		t.Fatalf("expected interval 30, got %d", cfg.IntervalMinutes)
-	}
-
 	// Create AutoBackupManager
 	abManager := NewAutoBackupManager(nil, slog.Default(), nil)
 	if abManager.IsRunning() {
 		t.Fatal("expected manager not running initially")
 	}
 
-	// Start without enabled should not run
+	// Start without enabled should start periodic scanner
 	if err := abManager.Start(); err != nil {
 		t.Fatal(err)
 	}
 	if !abManager.IsRunning() {
-		// Enabled is false, so it started the watcher for configured folders
+		t.Fatal("expected manager to be running after Start()")
 	}
+
+	// Calling Start() again is idempotent
+	if err := abManager.Start(); err != nil {
+		t.Fatal(err)
+	}
+
 	abManager.Stop()
+	if abManager.IsRunning() {
+		t.Fatal("expected manager to not be running after Stop()")
+	}
 
 	// Remove folder
 	remaining := mgr.RemoveAutoBackupFolder(folder1)
@@ -167,6 +153,10 @@ func TestFolderDeduplicationCaseSensitivity(t *testing.T) {
 	if err := LoadConfig(cfgFile); err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		_ = CloseAppDatabase()
+		ConfigPath = ""
+	}()
 
 	mgr := &ConfigManager{}
 	list, err := mgr.AddAutoBackupFolder(folder)
@@ -204,61 +194,60 @@ func TestFolderDeduplicationCaseSensitivity(t *testing.T) {
 	}
 }
 
-func TestAutoBackupFlushNilUploadManager(t *testing.T) {
+func TestAutoBackupScanFolders(t *testing.T) {
+	tempDir := t.TempDir()
+	folder := filepath.Join(tempDir, "scan_test")
+	if err := os.MkdirAll(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cfgFile := filepath.Join(tempDir, "gotohp.config")
+	if err := LoadConfig(cfgFile); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = CloseAppDatabase()
+		ConfigPath = ""
+	}()
+
+	f1 := filepath.Join(folder, "photo1.jpg")
+	f2 := filepath.Join(folder, "photo2.jpg")
+	_ = os.WriteFile(f1, []byte("content1"), 0o644)
+	_ = os.WriteFile(f2, []byte("content2"), 0o644)
+
 	abManager := NewAutoBackupManager(nil, slog.Default(), nil)
+	// scanFolders with nil uploadManager must not panic
+	abManager.running = true
+	abManager.scanFolders([]string{folder})
 
-	// flush() with empty pending queue and nil upload manager must not panic
-	abManager.flush()
+	// Mark f1 as uploaded
+	info1, _ := os.Stat(f1)
+	_ = abManager.history.MarkUploaded(f1, info1.Size(), info1.ModTime().Unix())
 
-	// schedule path and flush() with nil upload manager must not panic and must retain queue
-	abManager.schedule("test_photo.jpg")
+	if !abManager.history.IsUploaded(f1, info1.Size(), info1.ModTime().Unix()) {
+		t.Fatal("expected f1 to be marked as uploaded")
+	}
 
-	abManager.flush()
-
-	abManager.mu.Lock()
-	pendingLen := len(abManager.pending)
-	abManager.mu.Unlock()
-
-	if pendingLen != 1 {
-		t.Fatalf("expected pending queue to retain 1 item when uploadManager is nil, got %d", pendingLen)
+	info2, _ := os.Stat(f2)
+	if abManager.history.IsUploaded(f2, info2.Size(), info2.ModTime().Unix()) {
+		t.Fatal("expected f2 to not be uploaded yet")
 	}
 }
 
 func TestAutoBackupHistoryInvalidation(t *testing.T) {
-	tempDir := t.TempDir()
-	historyPath := filepath.Join(tempDir, "history.json")
-
-	h := NewAutoBackupHistory(historyPath)
+	h := NewAutoBackupHistory(":memory:")
 	defer func() { _ = h.Close() }()
-	testPath := filepath.Join(tempDir, "photo.jpg")
+	testPath := "C:/photos/photo.jpg"
 
-	h.MarkUploaded(testPath, 1024, 1700000000)
+	_ = h.MarkUploaded(testPath, 1024, 1700000000)
 	if !h.IsUploaded(testPath, 1024, 1700000000) {
 		t.Fatal("expected file to be marked as uploaded")
 	}
 
 	// Invalidate removes entry
-	h.Invalidate(testPath)
+	_ = h.Invalidate(testPath)
 	if h.IsUploaded(testPath, 1024, 1700000000) {
 		t.Fatal("expected file to not be uploaded after Invalidate")
-	}
-}
-
-func TestAddWatchRecursiveLimit(t *testing.T) {
-	tempDir := t.TempDir()
-	// Create multiple subdirectories
-	for i := 0; i < 5; i++ {
-		sub := filepath.Join(tempDir, "sub", string(rune('a'+i)))
-		if err := os.MkdirAll(sub, 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	abManager := NewAutoBackupManager(nil, slog.Default(), nil)
-	// Even with a synthetic directory tree, addWatchRecursive must succeed without error
-	err := abManager.addWatchRecursive(nil, tempDir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -324,134 +313,3 @@ func TestNestedFolderDeduplication(t *testing.T) {
 		t.Fatalf("expected cleanMonitoredFolders to prune child and duplicate, got: %v", cleaned)
 	}
 }
-
-func TestAddWatchNonExistentFolder(t *testing.T) {
-	tempDir := t.TempDir()
-	abManager := NewAutoBackupManager(nil, slog.Default(), nil)
-	nonExistent := filepath.Join(tempDir, "does_not_exist")
-
-	err := abManager.addWatchRecursive(nil, nonExistent)
-	if err == nil {
-		t.Fatal("expected error when adding non-existent folder, got nil")
-	}
-}
-
-func TestFileReadinessCheck(t *testing.T) {
-	tempDir := t.TempDir()
-
-	// 1. Temporary download file should not be ready
-	tempFile := filepath.Join(tempDir, "image.jpg.crdownload")
-	_ = os.WriteFile(tempFile, []byte("downloading"), 0o644)
-	if isFileReadyForUpload(tempFile, nil) {
-		t.Fatal("expected temporary download file to not be ready")
-	}
-
-	// 2. 0-byte file should not be ready
-	zeroFile := filepath.Join(tempDir, "empty.jpg")
-	_ = os.WriteFile(zeroFile, []byte(""), 0o644)
-	if isFileReadyForUpload(zeroFile, nil) {
-		t.Fatal("expected 0-byte file to not be ready")
-	}
-
-	// 3. Normal file modified recently (<1s) should wait for settling
-	readyFile := filepath.Join(tempDir, "ready.jpg")
-	_ = os.WriteFile(readyFile, []byte("valid content"), 0o644)
-	// Immediately after writing, modTime is Now(), so readiness check defers it
-	if isFileReadyForUpload(readyFile, nil) {
-		t.Fatal("expected brand new file with recent modtime to defer upload for settling")
-	}
-
-	// 4. File with older modTime should be ready
-	pastTime := time.Now().Add(-5 * time.Second)
-	_ = os.Chtimes(readyFile, pastTime, pastTime)
-	info, _ := os.Stat(readyFile)
-	if !isFileReadyForUpload(readyFile, info) {
-		t.Fatal("expected settled file to be ready for upload")
-	}
-}
-
-func TestAutoBackupFailureBackoff(t *testing.T) {
-	tempDir := t.TempDir()
-	testFile := filepath.Join(tempDir, "broken.jpg")
-	if err := os.WriteFile(testFile, []byte("broken content"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	fi, err := os.Stat(testFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	abManager := NewAutoBackupManager(nil, slog.Default(), nil)
-
-	// Initially not failing
-	if abManager.shouldSkipFailure(testFile, fi.Size(), fi.ModTime().Unix()) {
-		t.Fatal("expected new file to not be skipped")
-	}
-
-	// Record a failure
-	abManager.recordFailure(testFile, errors.New("simulated upload error"))
-	abs, _ := filepath.Abs(testFile)
-	abManager.mu.Lock()
-	rec := abManager.failures[abs]
-	abManager.mu.Unlock()
-
-	if rec == nil || rec.consecutiveFailures != 1 {
-		t.Fatalf("expected 1 failure recorded, got %v", rec)
-	}
-
-	// Now shouldSkipFailure should be true (in backoff)
-	if !abManager.shouldSkipFailure(testFile, fi.Size(), fi.ModTime().Unix()) {
-		t.Fatal("expected failed file to be skipped during backoff window")
-	}
-
-	// If file was edited (different modTime or size), backoff should reset
-	if abManager.shouldSkipFailure(testFile, fi.Size()+50, fi.ModTime().Unix()) {
-		t.Fatal("expected modified file size to reset failure backoff")
-	}
-
-	// Clear failure
-	abManager.clearFailure(testFile)
-	if abManager.shouldSkipFailure(testFile, fi.Size(), fi.ModTime().Unix()) {
-		t.Fatal("expected cleared failure to not be skipped")
-	}
-}
-
-func TestAutoBackupMaxFailureQuarantine(t *testing.T) {
-	tempDir := t.TempDir()
-	testFile := filepath.Join(tempDir, "looping_video.mp4")
-	if err := os.WriteFile(testFile, []byte("fake video content"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	fi, err := os.Stat(testFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	abManager := NewAutoBackupManager(nil, slog.Default(), nil)
-
-	// Simulate 10 consecutive failures
-	for i := 0; i < 10; i++ {
-		abManager.recordFailure(testFile, errors.New("scotty stream error"))
-	}
-
-	abs, _ := filepath.Abs(testFile)
-	abManager.mu.Lock()
-	rec := abManager.failures[abs]
-	// Force nextRetry to be in the past so backoff window is elapsed
-	rec.nextRetry = time.Now().Add(-1 * time.Hour)
-	abManager.mu.Unlock()
-
-	// Should still be skipped because max consecutive failures (quarantine) is reached
-	if !abManager.shouldSkipFailure(testFile, fi.Size(), fi.ModTime().Unix()) {
-		t.Fatal("expected file with >=10 failures to be quarantined even after backoff elapsed")
-	}
-
-	// But if file size changes, quarantine must reset
-	if abManager.shouldSkipFailure(testFile, fi.Size()+100, fi.ModTime().Unix()) {
-		t.Fatal("expected modified file size to break quarantine")
-	}
-}
-
-

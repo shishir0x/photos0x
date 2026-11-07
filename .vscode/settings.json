@@ -2,5 +2,5 @@
     "go.testFlags": [
         "-timeout=2m"
     ],
-    "antigravity.autoOpenFiles": true
+    "antigravity.enableInlineDiff": false,
 }

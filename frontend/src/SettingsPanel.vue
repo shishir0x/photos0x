@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, onMounted, watch } from 'vue'
+import { computed, nextTick, ref, onMounted, watch } from 'vue'
 import { ConfigManager } from '../bindings/app/core'
 import { Dialogs, Events } from "@wailsio/runtime"
 import { Label } from '@/components/ui/label'
@@ -57,10 +57,17 @@ const isHydrating = ref(true)
 // ── Auto Backup ──────────────────────────────────────────────────────────────
 const autoBackupEnabled = ref(false)
 const autoBackupFolders = ref<string[]>([])
-const autoBackupInterval = ref(15)
 const autoBackupHydrating = ref(true)
 const addFolderError = ref('')
 const isScanningNow = ref(false)
+const lastSyncedTime = ref<Date | null>(null)
+
+const lastSyncedStatus = computed(() => {
+    if (!autoBackupFolders.value.length) return 'Add a folder to begin'
+    if (isScanningNow.value) return 'Scanning...'
+    if (!lastSyncedTime.value) return 'Active (monitoring)'
+    return `Last synced ${lastSyncedTime.value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+})
 
 const toggleSetting = (setting: BooleanSetting, enabled = true) => {
     if (!enabled) return
@@ -94,11 +101,17 @@ onMounted(async () => {
         const abCfg = await ConfigManager.GetAutoBackup()
         autoBackupEnabled.value = abCfg.enabled || false
         autoBackupFolders.value = [...(abCfg.folders || [])]
-        autoBackupInterval.value = abCfg.intervalMinutes || 15
     } finally {
         await nextTick()
         autoBackupHydrating.value = false
     }
+
+    // Update lastSyncedTime whenever an upload completes while auto-backup is active
+    Events.On('uploadStop', () => {
+        if (autoBackupEnabled.value) {
+            lastSyncedTime.value = new Date()
+        }
+    })
 })
 
 async function addFolder() {
@@ -132,14 +145,6 @@ async function removeFolder(path: string) {
         }
     } catch (e: any) {
         console.error('Failed to remove backup folder:', e)
-    }
-}
-
-async function updateInterval(minutes: number) {
-    autoBackupInterval.value = minutes
-    await ConfigManager.SetAutoBackupInterval(minutes)
-    if (autoBackupEnabled.value) {
-        Events.Emit('restartAutoBackup', null)
     }
 }
 
@@ -455,62 +460,28 @@ watch(autoBackupEnabled, async (newValue) => {
         />
       </div>
 
-      <!-- Interval Selector -->
-      <div v-if="autoBackupEnabled" class="flex items-center justify-between">
-        <Label class="text-sm">Scan Interval</Label>
-        <div class="flex items-center gap-1">
-          <Button
+      <!-- Status row: focused & informative -->
+      <div v-if="autoBackupEnabled" class="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-md bg-muted/50 border border-border/40">
+        <span class="text-muted-foreground">Status</span>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 font-medium">
+            <span
+              class="size-2 rounded-full"
+              :class="autoBackupFolders.length ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/40'"
+            />
+            <span>{{ lastSyncedStatus }}</span>
+          </div>
+          <button
+            v-if="autoBackupFolders.length"
             type="button"
-            size="sm"
-            :variant="autoBackupInterval === 5 ? 'default' : 'outline'"
-            class="text-xs px-2 py-0.5 h-7 cursor-pointer"
-            @click="updateInterval(5)"
+            class="shrink-0 p-0.5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors focus:outline-none"
+            :title="isScanningNow ? 'Scanning...' : 'Scan now'"
+            :disabled="isScanningNow"
+            @click="triggerScanNow"
           >
-            5m
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            :variant="autoBackupInterval === 15 ? 'default' : 'outline'"
-            class="text-xs px-2 py-0.5 h-7 cursor-pointer"
-            @click="updateInterval(15)"
-          >
-            15m
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            :variant="autoBackupInterval === 30 ? 'default' : 'outline'"
-            class="text-xs px-2 py-0.5 h-7 cursor-pointer"
-            @click="updateInterval(30)"
-          >
-            30m
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            :variant="autoBackupInterval === 60 ? 'default' : 'outline'"
-            class="text-xs px-2 py-0.5 h-7 cursor-pointer"
-            @click="updateInterval(60)"
-          >
-            1h
-          </Button>
+            <RefreshCw class="size-3" :class="{ 'animate-spin': isScanningNow }" />
+          </button>
         </div>
-      </div>
-
-      <!-- Scan Now Button -->
-      <div v-if="autoBackupEnabled && autoBackupFolders.length" class="flex justify-end">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          class="gap-1 text-xs h-7 cursor-pointer"
-          :disabled="isScanningNow"
-          @click="triggerScanNow"
-        >
-          <RefreshCw class="size-3" :class="{ 'animate-spin': isScanningNow }" />
-          {{ isScanningNow ? 'Scanning...' : 'Scan Now' }}
-        </Button>
       </div>
 
       <!-- Folder list -->
