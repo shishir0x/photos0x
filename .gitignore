@@ -12,3 +12,7 @@ build/android/gen/
 config.yaml
 *.syso
 .claude/settings.local.json
+# Nix
+/result
+/result-*
+/.direnv

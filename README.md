@@ -144,6 +144,9 @@ sudo dpkg -i photos0x_amd64.deb
 sudo apt-get install -f # resolve any missing runtime dependencies
 ```
 
+#### Option C: Nix / NixOS (Flake)
+For Nix users on Linux, see [nix/README.md](nix/README.md).
+
 *Linux GUI Prerequisites*: The GUI application requires `libgtk-4` and `libwebkitgtk-6.0` (standard on modern Ubuntu 24.04+, Fedora 39+, and Debian 12+).
 
 ### Standalone Headless CLI
