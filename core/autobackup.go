@@ -638,6 +638,9 @@ func (m *AutoBackupManager) flush() {
 		return
 	}
 
+	// Sort ready paths from low storage to high storage before dispatching
+	sortPathsBySizeAscending(readyPaths)
+
 	m.logger.Info("auto-backup: triggering upload", "files", len(readyPaths))
 	if !m.uploadManager.Upload(readyPaths, opts) {
 		// Upload manager was busy, re-queue readyPaths and retry after delay

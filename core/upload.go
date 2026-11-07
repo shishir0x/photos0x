@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -189,18 +190,9 @@ func (m *UploadManager) Upload(paths []string, opts UploadOptions) bool {
 		return true
 	}
 
-	// Calculate total bytes asynchronously and emit update when complete
-	go func() {
-		var totalBytes int64
-		for _, item := range workItems {
-			for _, path := range uploadWorkPaths(item) {
-				if info, err := os.Stat(path); err == nil {
-					totalBytes += info.Size()
-				}
-			}
-		}
-		m.reporter.TotalBytes(totalBytes)
-	}()
+	// Sort work items from lowest storage (smallest total size) to highest storage (largest total size)
+	totalBytes := sortUploadWorkItemsBySizeAscending(workItems)
+	m.reporter.TotalBytes(totalBytes)
 
 	// Don't start more threads than files to process
 	numWorkers := min(opts.Threads, len(workItems))
@@ -542,6 +534,7 @@ func filterGooglePhotosFilesWithCancel(paths []string, opts UploadOptions, cance
 		}
 	}
 
+	sortPathsBySizeAscending(supportedFiles)
 	return supportedFiles, nil
 }
 
@@ -880,4 +873,75 @@ func uploadWorkPrimaryPath(item UploadWorkItem) string {
 		return ""
 	}
 	return paths[0]
+}
+
+// sortPathsBySizeAscending sorts a slice of file paths by file size ascending (low storage to high storage).
+// Equal sizes are sorted by path alphabetically for stable ordering. Missing files default to size 0.
+func sortPathsBySizeAscending(paths []string) {
+	if len(paths) <= 1 {
+		return
+	}
+	type pathWithSize struct {
+		path string
+		size int64
+	}
+	items := make([]pathWithSize, len(paths))
+	for i, p := range paths {
+		var sz int64
+		if info, err := os.Stat(p); err == nil {
+			sz = info.Size()
+		}
+		items[i] = pathWithSize{path: p, size: sz}
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].size != items[j].size {
+			return items[i].size < items[j].size
+		}
+		return items[i].path < items[j].path
+	})
+	for i, item := range items {
+		paths[i] = item.path
+	}
+}
+
+// sortUploadWorkItemsBySizeAscending sorts work items by total file size ascending (low storage to high storage).
+// Equal sizes are sorted by primary path alphabetically for stable ordering.
+// It returns the sum of all item sizes.
+func sortUploadWorkItemsBySizeAscending(workItems []UploadWorkItem) int64 {
+	if len(workItems) == 0 {
+		return 0
+	}
+	type workItemWithSize struct {
+		item        UploadWorkItem
+		size        int64
+		primaryPath string
+	}
+	items := make([]workItemWithSize, len(workItems))
+	var totalBytes int64
+	for i, item := range workItems {
+		var itemSize int64
+		for _, p := range uploadWorkPaths(item) {
+			if info, err := os.Stat(p); err == nil {
+				itemSize += info.Size()
+			}
+		}
+		items[i] = workItemWithSize{
+			item:        item,
+			size:        itemSize,
+			primaryPath: uploadWorkPrimaryPath(item),
+		}
+		totalBytes += itemSize
+	}
+
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].size != items[j].size {
+			return items[i].size < items[j].size
+		}
+		return items[i].primaryPath < items[j].primaryPath
+	})
+
+	for i, s := range items {
+		workItems[i] = s.item
+	}
+	return totalBytes
 }

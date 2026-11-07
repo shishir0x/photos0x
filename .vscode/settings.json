@@ -1,5 +1,6 @@
 {
     "go.testFlags": [
-    "-timeout=2m"
-]
+        "-timeout=2m"
+    ],
+    "antigravity.autoOpenFiles": true
 }
