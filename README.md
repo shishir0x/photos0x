@@ -65,7 +65,7 @@
 
 ## Overview
 
-**gotohp** is a fast, lightweight, and modern Google Photos uploader available as both an intuitive desktop GUI and a standalone, scriptable command-line utility.
+**photos0x** is a fast, lightweight, and modern Google Photos uploader available as both an intuitive desktop GUI and a standalone, scriptable command-line utility.
 
 ### The Problem It Solves
 Official methods for uploading large personal photo libraries to Google Photos often suffer from browser tab crashes, restrictive rate-limiting, clumsy duplicate management, and lack of support for specialized formats like paired Apple Live Photos. Standard web uploaders also cannot run headless on home servers, NAS devices, or scheduled background backup jobs.
@@ -76,7 +76,7 @@ Official methods for uploading large personal photo libraries to Google Photos o
 - **Power Users and Sysadmins**: Automate photo sync from Linux servers, NAS boxes, and storage arrays using a single static binary without graphical dependencies.
 
 ### How It Works
-gotohp communicates directly with Google's native mobile client endpoints. It hashes files locally using SHA-1, performs pre-upload deduplication checks against your library, establishes chunked upload sessions via Google Scotty servers, and commits items with exact metadata.
+photos0x communicates directly with Google's native mobile client endpoints. It hashes files locally using SHA-1, performs pre-upload deduplication checks against your library, establishes chunked upload sessions via Google Scotty servers, and commits items with exact metadata.
 
 ---
 
@@ -169,9 +169,9 @@ photos0x-cli version
 
 ### 1. Connect Account
 
-gotohp uses Google's standard Embedded Setup workflow to authenticate your account:
+photos0x uses Google's standard Embedded Setup workflow to authenticate your account:
 
-1. Launch `gotohp` and click **Add Google account**.
+1. Launch `photos0x` and click **Add Google account**.
 2. Click **Open sign-in** to open Google's authentication page in your web browser.
 3. Sign in to your Google Account and click **I agree** on the setup screen.
    *(Note: The page continuing to buffer or display a loading spinner after clicking "I agree" is expected behavior).*
@@ -179,7 +179,7 @@ gotohp uses Google's standard Embedded Setup workflow to authenticate your accou
    - Navigate to **Application** (Chrome/Brave/Edge) or **Storage** (Firefox).
    - In the left sidebar under **Cookies**, click `https://accounts.google.com`.
    - Locate the cookie named **`oauth_token`** and copy its **Value**.
-5. Return to gotohp, paste the token into the text field, and click **Connect account**.
+5. Return to photos0x, paste the token into the text field, and click **Connect account**.
 
 ### 2. Upload Photos & Videos
 
@@ -203,8 +203,8 @@ The command-line interface provides complete control over upload options, accoun
 ### Binary Overview
 
 Both binaries support CLI execution:
-- `gotohp-cli [command]` — Standalone CLI binary (recommended for headless servers).
-- `gotohp [command]` — Desktop binary (invoking with commands runs the CLI; running with no arguments opens the GUI).
+- `photos0x-cli [command]` — Standalone CLI binary (recommended for headless servers).
+- `photos0x [command]` — Desktop binary (invoking with commands runs the CLI; running with no arguments opens the GUI).
 
 ### Global Flags
 
@@ -212,7 +212,7 @@ Applicable to root and subcommands:
 
 | Flag | Short | Description |
 | :--- | :--- | :--- |
-| `--config <path>` | `-c` | Specify custom path to `gotohp.config` |
+| `--config <path>` | `-c` | Specify custom path to `photos0x.config` (or legacy `gotohp.config`) |
 | `--help` | `-h` | Display help information |
 | `--version` | `-v` | Display application version |
 
@@ -223,7 +223,7 @@ Applicable to root and subcommands:
 Uploads files or directories to Google Photos.
 
 ```bash
-gotohp-cli upload <path> [<path> ...] [flags]
+photos0x-cli upload <path> [<path> ...] [flags]
 ```
 
 > **Important**: The configuration file is used only to retrieve account credentials. All operational preferences (threads, quota, quality, proxy) are controlled by CLI flags so scripts behave consistently across environments.
@@ -262,35 +262,35 @@ Adds an account using either an `oauth_token` cookie or a raw credential string:
 
 ```bash
 # Add using an oauth_token cookie
-gotohp-cli creds add "oauth2_4/0AY0e-g..."
+photos0x-cli creds add "oauth2_4/0AY0e-g..."
 
 # Add via standard input (prevents token appearing in shell history)
-gotohp-cli creds add - < /path/to/token.txt
+photos0x-cli creds add - < /path/to/token.txt
 
 # Specify a proxy for the initial token exchange
-gotohp-cli creds add "oauth2_4/..." --proxy "http://127.0.0.1:8080"
+photos0x-cli creds add "oauth2_4/..." --proxy "http://127.0.0.1:8080"
 ```
 
 #### `creds list` (alias: `ls`)
 Lists all configured accounts. The active account is marked with an asterisk (`*`):
 
 ```bash
-gotohp-cli creds list
+photos0x-cli creds list
 ```
 
 #### `creds set <email>` (alias: `select`)
 Switches the active default account. Supports partial string matching:
 
 ```bash
-gotohp-cli creds set user@gmail.com
-gotohp-cli creds set user    # Matches if "user" uniquely identifies an account
+photos0x-cli creds set user@gmail.com
+photos0x-cli creds set user    # Matches if "user" uniquely identifies an account
 ```
 
 #### `creds remove <email>` (alias: `rm`)
 Removes an account from configuration:
 
 ```bash
-gotohp-cli creds remove user@gmail.com
+photos0x-cli creds remove user@gmail.com
 ```
 
 ---
@@ -299,11 +299,11 @@ gotohp-cli creds remove user@gmail.com
 
 ```bash
 # View version
-gotohp-cli version
+photos0x-cli version
 
 # Detailed help for any command
-gotohp-cli upload --help
-gotohp-cli creds --help
+photos0x-cli upload --help
+photos0x-cli creds --help
 ```
 
 ---
@@ -312,7 +312,7 @@ gotohp-cli creds --help
 
 #### Recursive batch upload with high concurrency:
 ```bash
-gotohp-cli upload /mnt/storage/photos \
+photos0x-cli upload /mnt/storage/photos \
   --recursive \
   --threads 6 \
   --exclude "@eaDir" \
@@ -321,21 +321,21 @@ gotohp-cli upload /mnt/storage/photos \
 
 #### Headless cron job with plain text logging:
 ```bash
-gotohp-cli upload /data/camera_backup \
+photos0x-cli upload /data/camera_backup \
   --recursive \
   --no-tui \
-  --log-level info >> /var/log/gotohp-backup.log 2>&1
+  --log-level info >> /var/log/photos0x-backup.log 2>&1
 ```
 
 #### Upload into automatically named albums:
 ```bash
 # Folders like "Vacation 2024" and "Birthdays" will become Google Photos albums:
-gotohp-cli upload /home/user/Pictures --recursive --album AUTO
+photos0x-cli upload /home/user/Pictures --recursive --album AUTO
 ```
 
 #### Upload Live Photos:
 ```bash
-gotohp-cli upload /Volumes/iPhonePhotos \
+photos0x-cli upload /Volumes/iPhonePhotos \
   --recursive \
   --pair-live-photos \
   --threads 4
@@ -347,18 +347,18 @@ gotohp-cli upload /Volumes/iPhonePhotos \
 
 ### Config File Locations
 
-When no `--config` flag is passed, gotohp resolves configuration in the following order of precedence:
+When no `--config` flag is passed, photos0x resolves configuration in the following order of precedence:
 
-1. **Portable Config**: An existing file named `gotohp.config` located in the same directory as the executable.
-2. **Working Directory**: An existing file named `gotohp.config` in the current working directory.
+1. **Portable Config**: An existing file named `photos0x.config` (or legacy `gotohp.config`) located in the same directory as the executable.
+2. **Working Directory**: An existing file named `photos0x.config` (or legacy `gotohp.config`) in the current working directory.
 3. **User Config Directory (Default)**:
-   - **Windows**: `%APPDATA%\gotohp\gotohp.config` (e.g. `C:\Users\<user>\AppData\Roaming\gotohp\gotohp.config`)
-   - **Linux**: `~/.config/gotohp/gotohp.config` (or `$XDG_CONFIG_HOME/gotohp/gotohp.config`)
-   - **macOS**: `~/Library/Application Support/gotohp/gotohp.config`
+   - **Windows**: `%APPDATA%\photos0x\photos0x.config` (falls back to `%APPDATA%\gotohp\gotohp.config` if present)
+   - **Linux**: `~/.config/photos0x/photos0x.config` (or `$XDG_CONFIG_HOME/photos0x/photos0x.config`)
+   - **macOS**: `~/Library/Application Support/photos0x/photos0x.config`
 
 ### Portable Mode
 
-To run gotohp portably (keeping configuration, tokens, and settings alongside the binary on a flash drive or standalone directory), create an empty file named `gotohp.config` next to `gotohp.exe` or `gotohp-cli`.
+To run photos0x portably (keeping configuration, tokens, and settings alongside the binary on a flash drive or standalone directory), create an empty file named `photos0x.config` next to `photos0x.exe` or `photos0x-cli`.
 
 ### Configuration File Structure
 
@@ -384,6 +384,11 @@ preferences:
   disable_unsupported_files_filter: false
   set_date_from_filename: false
   exclude_pattern: ""
+
+auto_backup:
+  enabled: false
+  folders: []
+  interval_minutes: 15
 ```
 
 ---
@@ -401,13 +406,13 @@ If you run Google Photos ReVanced with GmsCore:
    - **Linux / macOS**: `adb logcat | grep "auth%2Fphotos.native"`
 3. Remove and re-add your Google Account in GmsCore, then open Google Photos.
 4. Copy the logged line beginning with `androidId=` through the end of the line.
-5. Paste into gotohp (`Add Google account` → `Advanced` → `Add raw credential`).
+5. Paste into photos0x (`Add Google account` → `Advanced` → `Add raw credential`).
 
 #### Method 3: Official Android APK Capture (Root required)
 1. Using a rooted device or emulator with [HTTP Toolkit](https://httptoolkit.com).
 2. Intercept ADB traffic and filter requests containing `https://www.googleapis.com/auth/photos.native`.
-3. Copy the raw request body into gotohp as a raw credential.
-4. If gotohp reports that the credential requires a **Token Binding Key**, connect your rooted device via ADB and click **Read from ADB**. gotohp will read the `lstBindingKeyAlias` from Android's AccountManager database.
+3. Copy the raw request body into photos0x as a raw credential.
+4. If photos0x reports that the credential requires a **Token Binding Key**, connect your rooted device via ADB and click **Read from ADB**. photos0x will read the `lstBindingKeyAlias` from Android's AccountManager database.
 
 ---
 
@@ -415,14 +420,14 @@ If you run Google Photos ReVanced with GmsCore:
 
 ### "No credentials found" or "Connect Google Photos" prompt
 - **Cause**: No account has been added yet or the selected account's credentials have expired.
-- **Solution**: Follow the [Quick Start](#1-connect-account) steps to add your account using the `oauth_token` cookie. In CLI, verify with `gotohp-cli creds list`.
+- **Solution**: Follow the [Quick Start](#1-connect-account) steps to add your account using the `oauth_token` cookie. In CLI, verify with `photos0x-cli creds list`.
 
 ### The Embedded Setup page spins indefinitely on "I agree"
 - **Cause**: This is normal behavior. Google's mobile webview setup flow does not redirect to a completion page inside standard desktop browsers.
 - **Solution**: Once you click "I agree", the required `oauth_token` cookie has already been generated. Open DevTools (**F12**) → Storage/Application → Cookies → `accounts.google.com` to copy it.
 
 ### Upload starts but files are skipped
-- **Cause**: By default, gotohp hashes each item and queries Google Photos for existing matches. If a file with an identical SHA-1 hash is already present in your library, it is skipped to save time and bandwidth.
+- **Cause**: By default, photos0x hashes each item and queries Google Photos for existing matches. If a file with an identical SHA-1 hash is already present in your library, it is skipped to save time and bandwidth.
 - **Solution**: To force a re-upload regardless of library state, enable **Force Upload** in GUI Settings or pass the `--force` (`-f`) flag in CLI.
 
 ### Apple Live Photos upload as static images or separate videos
@@ -438,7 +443,7 @@ If you run Google Photos ReVanced with GmsCore:
 
 ### Webview startup issues on Linux
 - **Cause**: Missing WebKitGTK runtime libraries.
-- **Solution**: Install the required packages: `sudo apt-get install libgtk-4-dev libwebkitgtk-6.0-dev`. Alternatively, use the standalone `gotohp-cli` which requires no graphical packages.
+- **Solution**: Install the required packages: `sudo apt-get install libgtk-4-dev libwebkitgtk-6.0-dev`. Alternatively, use the standalone `photos0x-cli` which requires no graphical packages.
 
 ---
 
@@ -463,7 +468,7 @@ If you run Google Photos ReVanced with GmsCore:
 
 ```bash
 git clone https://github.com/shishir0x/photos0x.git
-cd gotohp
+cd photos0x
 ```
 
 ### Building with Task
@@ -492,10 +497,10 @@ task fmt
 #### 1. Compile the Standalone CLI Binary (Pure Go, Headless)
 ```bash
 # Windows (PowerShell)
-$env:CGO_ENABLED="0"; go build -tags cli -trimpath -ldflags="-w -s" -o bin/gotohp-cli.exe .
+$env:CGO_ENABLED="0"; go build -tags cli -trimpath -ldflags="-w -s" -o bin/photos0x-cli.exe .
 
 # Linux / macOS (Bash)
-CGO_ENABLED=0 go build -tags cli -trimpath -ldflags="-w -s" -o bin/gotohp-cli .
+CGO_ENABLED=0 go build -tags cli -trimpath -ldflags="-w -s" -o bin/photos0x-cli .
 ```
 
 #### 2. Compile the Desktop GUI Binary
@@ -510,10 +515,10 @@ cd ..
 Then compile the Wails desktop binary:
 ```bash
 # Windows
-go build -tags production -ldflags="-w -s -H windowsgui" -o bin/gotohp.exe .
+go build -tags production -ldflags="-w -s -H windowsgui" -o bin/photos0x.exe .
 
 # Linux / macOS
-go build -tags production -ldflags="-w -s" -o bin/gotohp .
+go build -tags production -ldflags="-w -s" -o bin/photos0x .
 ```
 
 ---
@@ -543,11 +548,13 @@ gofumpt -l -w .
 ## Architecture and Project Structure
 
 ```
-gotohp/
+photos0x/
 ├── core/                       # Reusable Go library implementing the core backend
 │   ├── album.go                # Google Photos album creation & management
 │   ├── api.go                  # Google Photos private API client & auth session
+│   ├── autobackup.go           # Periodic background folder backup manager
 │   ├── configmanager.go        # Config persistence, paths, and migrations
+│   ├── db.go                   # SQLite persistent storage and schema migrations
 │   ├── filename_parser.go      # Timestamp extraction from file naming patterns
 │   ├── googleauth.go           # EmbeddedSetup token exchange & credential validation
 │   ├── livephoto.go            # Apple Live Photo pairing & classification
@@ -582,9 +589,9 @@ gotohp/
 
 ## Security, Privacy, and Limitations
 
-- **Local Credential Storage**: Authentication tokens are stored locally in plain-text YAML within `gotohp.config`, secured by operating system file-system permissions (`0600`). Never commit this file or share its contents publicly.
-- **Quota & Protocol Longevity**: Features such as unlimited storage or specific device simulation rely on endpoints provided by Google for mobile devices. Google may modify, restrict, or rate-limit these services at any time. gotohp should not replace an independent, 3-2-1 backup strategy.
-- **Direct Communications**: gotohp connects directly to Google services (`accounts.google.com`, `android.clients.google.com`, and `photosdata-pa.googleapis.com`). No telemetry or user data is transmitted to third-party servers.
+- **Local Credential Storage**: Authentication tokens are stored locally in plain-text YAML within `photos0x.config` (or legacy `gotohp.config`), secured by operating system file-system permissions (`0600`). Never commit this file or share its contents publicly.
+- **Quota & Protocol Longevity**: Features such as unlimited storage or specific device simulation rely on endpoints provided by Google for mobile devices. Google may modify, restrict, or rate-limit these services at any time. photos0x should not replace an independent, 3-2-1 backup strategy.
+- **Direct Communications**: photos0x connects directly to Google services (`accounts.google.com`, `android.clients.google.com`, and `photosdata-pa.googleapis.com`). No telemetry or user data is transmitted to third-party servers.
 
 ---
 
@@ -607,7 +614,7 @@ Contributions are welcome! Please follow these guidelines:
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for complete details.
 
 ### Upstream Project
-gotohp is based on the original work by [xob0t](https://github.com/xob0t/gotohp). We are deeply grateful for their foundational research and reverse engineering of the Google Photos client protocols.
+photos0x is based on the original work by [xob0t](https://github.com/xob0t/gotohp) (formerly named gotohp). We are deeply grateful for their foundational research and reverse engineering of the Google Photos client protocols.
 
 ### Key Open-Source Libraries
 - [Wails](https://wails.io) — Native desktop application framework for Go.
