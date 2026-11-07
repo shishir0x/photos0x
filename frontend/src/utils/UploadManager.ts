@@ -288,6 +288,10 @@ class UploadManager {
     Events.Emit("uploadCancel");
   }
 
+  public cancelFile(workerId: number, filePath?: string) {
+    Events.Emit("uploadCancelFile", { workerId, filePath: filePath || "" });
+  }
+
   public async copyResultsAsJson() {
     const resultsJson = JSON.stringify(this.state.results, null, 2);
     try {

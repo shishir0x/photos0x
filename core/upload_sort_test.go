@@ -140,3 +140,80 @@ func TestFilterGooglePhotosFiles_SortsBySizeAscending(t *testing.T) {
 	}
 }
 
+func TestUploadManager_CancelWorkerAndFile(t *testing.T) {
+	mgr := NewUploadManager(nil, nil)
+
+	// Inactive worker/file should return false
+	if mgr.CancelWorker(0) {
+		t.Error("expected CancelWorker on inactive worker to return false")
+	}
+	if mgr.CancelFile("some_file.jpg") {
+		t.Error("expected CancelFile on inactive file to return false")
+	}
+
+	// Register an active worker upload
+	worker0Cancelled := false
+	path0 := "C:/test/file_0.jpg"
+	active0 := &activeWorkerUpload{
+		workerID: 0,
+		paths:    []string{path0},
+		cancel: func() {
+			worker0Cancelled = true
+		},
+	}
+	mgr.activeUploads.Store(0, active0)
+
+	// CancelWorker(0) should invoke the cancel func and return true
+	if !mgr.CancelWorker(0) {
+		t.Error("expected CancelWorker(0) to return true")
+	}
+	if !worker0Cancelled {
+		t.Error("expected worker 0 cancel func to have been called")
+	}
+	if _, ok := mgr.cancelledByUser.Load(path0); !ok {
+		t.Error("expected path0 to be marked in cancelledByUser")
+	}
+
+	// Register another worker upload
+	worker1Cancelled := false
+	path1 := "C:/test/file_1.mp4"
+	active1 := &activeWorkerUpload{
+		workerID: 1,
+		paths:    []string{path1},
+		cancel: func() {
+			worker1Cancelled = true
+		},
+	}
+	mgr.activeUploads.Store(1, active1)
+
+	// CancelFile(path1) should find worker 1 and cancel it
+	if !mgr.CancelFile(path1) {
+		t.Error("expected CancelFile(path1) to return true")
+	}
+	if !worker1Cancelled {
+		t.Error("expected worker 1 cancel func to have been called")
+	}
+	if _, ok := mgr.cancelledByUser.Load(path1); !ok {
+		t.Error("expected path1 to be marked in cancelledByUser")
+	}
+
+	// CancelWorkerOrFile test
+	worker2Cancelled := false
+	path2 := "C:/test/file_2.jpg"
+	active2 := &activeWorkerUpload{
+		workerID: 2,
+		paths:    []string{path2},
+		cancel: func() {
+			worker2Cancelled = true
+		},
+	}
+	mgr.activeUploads.Store(2, active2)
+
+	if !mgr.CancelWorkerOrFile(2, "") {
+		t.Error("expected CancelWorkerOrFile(2, '') to return true")
+	}
+	if !worker2Cancelled {
+		t.Error("expected worker 2 cancel func to have been called")
+	}
+}
+

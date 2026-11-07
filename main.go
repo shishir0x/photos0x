@@ -113,9 +113,32 @@ func runGUI() {
 		}
 	}
 
-	// Listen for upload cancel event
+	// Listen for upload cancel event (cancels the entire batch)
 	wailsApp.Event.On("uploadCancel", func(e *application.CustomEvent) {
 		uploadManager.Cancel()
+	})
+
+	// Listen for individual file / thread upload cancel event (cancels current file and moves to next)
+	wailsApp.Event.On("uploadCancelFile", func(e *application.CustomEvent) {
+		switch v := e.Data.(type) {
+		case core.CancelUploadFileEvent:
+			uploadManager.CancelWorkerOrFile(v.WorkerID, v.FilePath)
+		case map[string]any:
+			workerID := -1
+			if wid, ok := v["workerId"].(float64); ok {
+				workerID = int(wid)
+			}
+			filePath, _ := v["filePath"].(string)
+			uploadManager.CancelWorkerOrFile(workerID, filePath)
+		case float64:
+			uploadManager.CancelWorker(int(v))
+		case int:
+			uploadManager.CancelWorker(v)
+		case string:
+			uploadManager.CancelFile(v)
+		default:
+			wailsApp.Logger.Warn("uploadCancelFile: unhandled data type", "type", fmt.Sprintf("%T", e.Data))
+		}
 	})
 
 	window.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {

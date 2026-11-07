@@ -25,16 +25,30 @@ type StartUploadEvent struct {
 	Files []string `json:"files"`
 }
 
+// CancelUploadFileEvent is received from frontend to cancel an individual file upload
+type CancelUploadFileEvent struct {
+	WorkerID int    `json:"workerId"`
+	FilePath string `json:"filePath"`
+}
+
+type activeWorkerUpload struct {
+	workerID int
+	paths    []string
+	cancel   context.CancelFunc
+}
+
 type UploadManager struct {
-	mu       sync.Mutex
-	wg       sync.WaitGroup
-	cancel   chan struct{}
-	canceled bool
-	running  bool
-	reporter UploadReporter
-	logger   *slog.Logger
+	mu              sync.Mutex
+	wg              sync.WaitGroup
+	cancel          chan struct{}
+	canceled        bool
+	running         bool
+	reporter        UploadReporter
+	logger          *slog.Logger
 	// apiOptions is captured from the options of the run in progress.
-	apiOptions ApiOptions
+	apiOptions      ApiOptions
+	activeUploads   sync.Map // workerID (int) -> *activeWorkerUpload
+	cancelledByUser sync.Map // path (string) -> bool
 }
 
 // NewUploadManager creates a manager that reports progress to reporter. A nil
@@ -66,6 +80,57 @@ func (m *UploadManager) Cancel() {
 		m.canceled = true
 		// Don't set to nil - readers still need to detect closure via select
 	}
+}
+
+// CancelWorker cancels the file currently being uploaded by workerID,
+// allowing that worker to immediately proceed to the next file in the queue.
+func (m *UploadManager) CancelWorker(workerID int) bool {
+	if val, ok := m.activeUploads.Load(workerID); ok {
+		if active, ok := val.(*activeWorkerUpload); ok {
+			for _, p := range active.paths {
+				m.cancelledByUser.Store(p, true)
+			}
+			active.cancel()
+			return true
+		}
+	}
+	return false
+}
+
+// CancelFile cancels the upload of a specific file path if it is currently in progress.
+func (m *UploadManager) CancelFile(filePath string) bool {
+	canonical := canonicalUploadPath(filePath)
+	var matchedWorker *activeWorkerUpload
+	m.activeUploads.Range(func(key, val any) bool {
+		if active, ok := val.(*activeWorkerUpload); ok {
+			for _, p := range active.paths {
+				if canonicalUploadPath(p) == canonical || p == filePath {
+					matchedWorker = active
+					return false
+				}
+			}
+		}
+		return true
+	})
+	if matchedWorker != nil {
+		for _, p := range matchedWorker.paths {
+			m.cancelledByUser.Store(p, true)
+		}
+		matchedWorker.cancel()
+		return true
+	}
+	return false
+}
+
+// CancelWorkerOrFile cancels an individual file upload by workerID or filePath.
+func (m *UploadManager) CancelWorkerOrFile(workerID int, filePath string) bool {
+	if workerID >= 0 && m.CancelWorker(workerID) {
+		return true
+	}
+	if filePath != "" {
+		return m.CancelFile(filePath)
+	}
+	return false
 }
 
 // isCancelled checks if cancellation has been requested
@@ -743,6 +808,16 @@ func (m *UploadManager) runWorker(workerID int, workChan <-chan UploadWorkItem, 
 			return // Stop if cancellation is requested
 		default:
 			ctx, cancelUpload := context.WithCancel(context.Background())
+			path := uploadWorkPrimaryPath(item)
+			paths := uploadWorkPaths(item)
+
+			active := &activeWorkerUpload{
+				workerID: workerID,
+				paths:    paths,
+				cancel:   cancelUpload,
+			}
+			m.activeUploads.Store(workerID, active)
+
 			go func() {
 				select {
 				case <-cancel:
@@ -752,11 +827,46 @@ func (m *UploadManager) runWorker(workerID int, workChan <-chan UploadWorkItem, 
 				}
 			}()
 
-			path := uploadWorkPrimaryPath(item)
-			paths := uploadWorkPaths(item)
 			isLivePhoto := item.Kind == UploadWorkLivePhoto
 			mediaKey, skipped, err := uploadWorkItem(ctx, api, item, opts, workerID, m.reporter)
-			if opts.OnFileUploaded != nil && (err == nil || mediaKey != "" || skipped) {
+			m.activeUploads.Delete(workerID)
+
+			// Check if this specific file was individually cancelled by user
+			cancelledByUser := false
+			if !m.isCancelled() {
+				for _, p := range paths {
+					if _, ok := m.cancelledByUser.LoadAndDelete(p); ok {
+						cancelledByUser = true
+					}
+				}
+			}
+
+			if cancelledByUser {
+				var itemBytes int64
+				for _, p := range paths {
+					if info, statErr := os.Stat(p); statErr == nil {
+						itemBytes += info.Size()
+					}
+				}
+				if itemBytes > 0 {
+					m.reporter.TotalBytesDelta(-itemBytes)
+				}
+				results <- FileUploadResult{
+					IsLivePhoto: isLivePhoto,
+					Skipped:     true,
+					SkipCode:    "cancelled-by-user",
+					SkipReason:  "Upload cancelled by user",
+					Path:        path,
+					Paths:       paths,
+				}
+				m.reporter.ThreadStatus(ThreadStatus{
+					WorkerID: workerID,
+					Status:   "skipped",
+					FilePath: path,
+					FileName: filepath.Base(path),
+					Message:  "Upload cancelled by user",
+				})
+			} else if opts.OnFileUploaded != nil && (err == nil || mediaKey != "" || skipped) {
 				for _, p := range paths {
 					if info, statErr := os.Stat(p); statErr == nil {
 						opts.OnFileUploaded(p, info.Size(), info.ModTime().Unix())
@@ -766,8 +876,7 @@ func (m *UploadManager) runWorker(workerID int, workChan <-chan UploadWorkItem, 
 				for _, p := range paths {
 					opts.OnFileFailed(p, err)
 				}
-			}
-			if err != nil && mediaKey != "" {
+			} else if err != nil && mediaKey != "" {
 				results <- FileUploadResult{IsLivePhoto: isLivePhoto, Path: path, Paths: paths, MediaKey: mediaKey}
 				m.reporter.Warning(PreflightWarning{
 					Paths:   paths,
