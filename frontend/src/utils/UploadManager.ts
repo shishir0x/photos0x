@@ -58,6 +58,7 @@ function isSkippedUploadWarning(code: string): boolean {
 
 export interface UploadState {
   isUploading: boolean;
+  isPaused: boolean;
   totalFiles: number;
   uploadedFiles: number;
   threads: Map<number, ThreadStatus>;
@@ -81,6 +82,7 @@ class UploadManager {
   // Reactive state that can be accessed by components
   public state = reactive<UploadState>({
     isUploading: false,
+    isPaused: false,
     totalFiles: 0,
     uploadedFiles: 0,
     threads: new Map<number, ThreadStatus>(),
@@ -135,6 +137,7 @@ class UploadManager {
       this.state.uploadedFiles = 0;
       this.state.uploadedBytes = 0;
       this.state.isUploading = true;
+      this.state.isPaused = false;
       this.state.threads.clear();
       this.state.startTime = Date.now();
       this.state.uploadSpeed = 0;
@@ -217,6 +220,7 @@ class UploadManager {
     // Handle upload stop
     Events.On("uploadStop", () => {
       this.state.isUploading = false;
+      this.state.isPaused = false;
     });
 
     // Handle album creation progress
@@ -298,7 +302,26 @@ class UploadManager {
   }
 
   public cancelUpload() {
+    this.state.isPaused = false;
     Events.Emit("uploadCancel");
+  }
+
+  public pauseUpload() {
+    this.state.isPaused = true;
+    Events.Emit("uploadPause");
+  }
+
+  public resumeUpload() {
+    this.state.isPaused = false;
+    Events.Emit("uploadResume");
+  }
+
+  public togglePause() {
+    if (this.state.isPaused) {
+      this.resumeUpload();
+    } else {
+      this.pauseUpload();
+    }
   }
 
   public cancelFile(workerId: number, filePath?: string) {

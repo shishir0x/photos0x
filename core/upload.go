@@ -43,6 +43,9 @@ type UploadManager struct {
 	cancel          chan struct{}
 	canceled        bool
 	running         bool
+	pauseMu         sync.Mutex
+	pauseCond       *sync.Cond
+	paused          bool
 	reporter        UploadReporter
 	logger          *slog.Logger
 	// apiOptions is captured from the options of the run in progress.
@@ -60,16 +63,52 @@ func NewUploadManager(reporter UploadReporter, logger *slog.Logger) *UploadManag
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	return &UploadManager{
+	m := &UploadManager{
 		reporter: reporter,
 		logger:   logger,
 	}
+	m.pauseCond = sync.NewCond(&m.pauseMu)
+	return m
 }
 
 func (m *UploadManager) IsRunning() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.running
+}
+
+func (m *UploadManager) Pause() {
+	m.pauseMu.Lock()
+	m.paused = true
+	m.pauseMu.Unlock()
+}
+
+func (m *UploadManager) Resume() {
+	m.pauseMu.Lock()
+	m.paused = false
+	if m.pauseCond != nil {
+		m.pauseCond.Broadcast()
+	}
+	m.pauseMu.Unlock()
+}
+
+func (m *UploadManager) IsPaused() bool {
+	m.pauseMu.Lock()
+	defer m.pauseMu.Unlock()
+	return m.paused
+}
+
+func (m *UploadManager) waitIfPaused(workerID int) {
+	m.pauseMu.Lock()
+	for m.paused && !m.isCancelled() {
+		m.reporter.ThreadStatus(ThreadStatus{
+			WorkerID: workerID,
+			Status:   "idle",
+			Message:  "Paused",
+		})
+		m.pauseCond.Wait()
+	}
+	m.pauseMu.Unlock()
 }
 
 func (m *UploadManager) Cancel() {
@@ -80,6 +119,12 @@ func (m *UploadManager) Cancel() {
 		m.canceled = true
 		// Don't set to nil - readers still need to detect closure via select
 	}
+	m.pauseMu.Lock()
+	m.paused = false
+	if m.pauseCond != nil {
+		m.pauseCond.Broadcast()
+	}
+	m.pauseMu.Unlock()
 }
 
 // CancelWorker cancels the file currently being uploaded by workerID,
@@ -198,6 +243,9 @@ func (m *UploadManager) Upload(paths []string, opts UploadOptions) bool {
 	m.running = true
 	m.cancel = make(chan struct{})
 	m.canceled = false
+	m.pauseMu.Lock()
+	m.paused = false
+	m.pauseMu.Unlock()
 	m.apiOptions = opts.Api
 	m.mu.Unlock()
 
@@ -798,6 +846,7 @@ func (m *UploadManager) runWorker(workerID int, workChan <-chan UploadWorkItem, 
 	}
 
 	for item := range workChan {
+		m.waitIfPaused(workerID)
 		select {
 		case <-cancel:
 			m.reporter.ThreadStatus(ThreadStatus{

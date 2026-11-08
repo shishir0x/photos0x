@@ -128,6 +128,14 @@ func runGUI() {
 		uploadManager.Cancel()
 	})
 
+	// Listen for upload pause and resume events
+	wailsApp.Event.On("uploadPause", func(e *application.CustomEvent) {
+		uploadManager.Pause()
+	})
+	wailsApp.Event.On("uploadResume", func(e *application.CustomEvent) {
+		uploadManager.Resume()
+	})
+
 	// Listen for individual file / thread upload cancel event (cancels current file and moves to next)
 	wailsApp.Event.On("uploadCancelFile", func(e *application.CustomEvent) {
 		switch v := e.Data.(type) {

@@ -5,7 +5,7 @@ import { Progress } from "./components/ui/progress"
 import { ScrollArea } from "./components/ui/scroll-area"
 import ThreadProgress from "./components/ThreadProgress.vue"
 import { uploadManager } from './utils/UploadManager'
-import { X, Clock, Zap, FolderPlus, AlertTriangle } from '@lucide/vue'
+import { X, Clock, Zap, FolderPlus, AlertTriangle, Play, Pause } from '@lucide/vue'
 
 const { state } = uploadManager
 
@@ -186,18 +186,42 @@ function warningFiles(paths: string[]): string {
       </ScrollArea>
     </div>
 
-    <!-- Cancel button - fixed at bottom -->
-    <Button
-      variant="destructive"
-      size="sm"
-      class="w-full"
-      @click="() => uploadManager.cancelUpload()"
-    >
-      <X
-        :size="14"
-        class="mr-1"
-      />
-      Cancel Upload
-    </Button>
+    <!-- Action buttons - fixed at bottom -->
+    <div class="flex gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        class="flex-1 cursor-pointer"
+        @click="() => uploadManager.togglePause()"
+      >
+        <template v-if="state.isPaused">
+          <Play
+            :size="14"
+            class="mr-1.5"
+          />
+          Resume
+        </template>
+        <template v-else>
+          <Pause
+            :size="14"
+            class="mr-1.5"
+          />
+          Pause
+        </template>
+      </Button>
+
+      <Button
+        variant="destructive"
+        size="sm"
+        class="flex-1 cursor-pointer"
+        @click="() => uploadManager.cancelUpload()"
+      >
+        <X
+          :size="14"
+          class="mr-1"
+        />
+        Cancel All
+      </Button>
+    </div>
   </div>
 </template>
