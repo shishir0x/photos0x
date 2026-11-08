@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/sheet'
 import { useColorMode } from '@vueuse/core'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { UserPlus, X } from '@lucide/vue'
+import { UserPlus, X, History } from '@lucide/vue'
 import { ConfigManager } from '../bindings/app/core'
 import { Events } from '@wailsio/runtime'
 import Button from "./components/ui/button/Button.vue"
@@ -17,6 +17,7 @@ import GoogleAccountSelect from './components/GoogleAccountSelect.vue'
 import GoogleAuthSetup from "./components/GoogleAuthSetup.vue"
 import './index.css'
 import SettingsPanel from "./SettingsPanel.vue"
+import HistorySheet from "./components/HistorySheet.vue"
 import Upload from './Upload.vue'
 import { uploadManager } from './utils/UploadManager'
 import Toaster from './components/ui/sonner/Sonner.vue'
@@ -444,21 +445,38 @@ onUnmounted(() => {
             </Button>
           </div>
 
-          <Sheet>
-            <SheetTrigger>
-              <Button
-                variant="outline"
-                class="cursor-pointer select-none"
-              >
-                Settings
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="bottom">
-              <TooltipProvider disable-hoverable-content>
-                <SettingsPanel />
-              </TooltipProvider>
-            </SheetContent>
-          </Sheet>
+          <div class="flex gap-2 items-center">
+            <Sheet>
+              <SheetTrigger>
+                <Button
+                  variant="outline"
+                  class="cursor-pointer select-none"
+                >
+                  <History class="size-4 mr-1.5" />
+                  History
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" class="p-0">
+                <HistorySheet />
+              </SheetContent>
+            </Sheet>
+
+            <Sheet>
+              <SheetTrigger>
+                <Button
+                  variant="outline"
+                  class="cursor-pointer select-none"
+                >
+                  Settings
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom">
+                <TooltipProvider disable-hoverable-content>
+                  <SettingsPanel />
+                </TooltipProvider>
+              </SheetContent>
+            </Sheet>
+          </div>
 
           <div
             v-if="uploadState.uploadedFiles > 0 || uploadState.results.fail.length > 0"

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // FilesDroppedEvent is emitted when files are dropped on any drop zone
@@ -336,6 +337,11 @@ func (m *UploadManager) Upload(paths []string, opts UploadOptions) bool {
 
 	// Handle results, wait for completion, and create album if configured
 	go func() {
+		sessionID := fmt.Sprintf("%d", time.Now().UnixNano())
+		sessionStartTime := time.Now().Unix()
+		var sessionItems []UploadSessionItem
+		var successCount, failCount, skippedCount int
+
 		// Collect successful uploads with path -> mediaKey mapping for AUTO mode
 		successfulUploads := make(map[string]string) // path -> mediaKey
 
@@ -348,15 +354,50 @@ func (m *UploadManager) Upload(paths []string, opts UploadOptions) bool {
 		// Process all results (this blocks until results channel is closed)
 		for result := range results {
 			m.reporter.FileResult(result)
+			status := "success"
 			if result.IsError {
+				status = "fail"
+				failCount++
 				m.logger.Error("upload error", "path", result.Path, "error", result.Error)
+			} else if result.Skipped {
+				status = "skipped"
+				skippedCount++
 			} else {
+				successCount++
 				m.logger.Info("upload success", "path", result.Path)
 				if result.MediaKey != "" {
 					successfulUploads[result.Path] = result.MediaKey
 				}
 			}
+
+			var fileSize int64
+			if info, err := os.Stat(result.Path); err == nil {
+				fileSize = info.Size()
+			}
+
+			sessionItems = append(sessionItems, UploadSessionItem{
+				SessionID:    sessionID,
+				Path:         result.Path,
+				FileName:     filepath.Base(result.Path),
+				Status:       status,
+				ErrorMessage: result.ErrorMessage,
+				MediaKey:     result.MediaKey,
+				Size:         fileSize,
+				CreatedAt:    time.Now().Unix(),
+			})
 		}
+
+		_ = GetDefaultSessionHistory().RecordSession(UploadSession{
+			ID:           sessionID,
+			StartedAt:    sessionStartTime,
+			FinishedAt:   time.Now().Unix(),
+			AlbumName:    opts.AlbumName,
+			TotalFiles:   len(workItems),
+			SuccessCount: successCount,
+			FailCount:    failCount,
+			SkippedCount: skippedCount,
+			TotalBytes:   totalBytes,
+		}, sessionItems)
 
 		m.logger.Info("upload complete", "successful", len(successfulUploads),
 			"albumName", opts.AlbumName, "albumAutoMode", opts.AlbumAutoMode)

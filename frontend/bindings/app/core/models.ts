@@ -477,6 +477,73 @@ export class UploadBatchStart {
     }
 }
 
+export class UploadSessionItem {
+    "id": number;
+    "sessionId": string;
+    "path": string;
+    "fileName": string;
+    "status": string;
+    "errorMessage": string;
+    "mediaKey": string;
+    "size": number;
+    "createdAt": number;
+
+    constructor($$source: Partial<UploadSessionItem> = {}) {
+        if (!("id" in $$source)) this["id"] = 0;
+        if (!("sessionId" in $$source)) this["sessionId"] = "";
+        if (!("path" in $$source)) this["path"] = "";
+        if (!("fileName" in $$source)) this["fileName"] = "";
+        if (!("status" in $$source)) this["status"] = "";
+        if (!("errorMessage" in $$source)) this["errorMessage"] = "";
+        if (!("mediaKey" in $$source)) this["mediaKey"] = "";
+        if (!("size" in $$source)) this["size"] = 0;
+        if (!("createdAt" in $$source)) this["createdAt"] = 0;
+        Object.assign(this, $$source);
+    }
+
+    static createFrom($$source: any = {}): UploadSessionItem {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UploadSessionItem($$parsedSource as Partial<UploadSessionItem>);
+    }
+}
+
+export class UploadSession {
+    "id": string;
+    "startedAt": number;
+    "finishedAt": number;
+    "account": string;
+    "albumName": string;
+    "totalFiles": number;
+    "successCount": number;
+    "failCount": number;
+    "skippedCount": number;
+    "totalBytes": number;
+    "items"?: UploadSessionItem[];
+
+    constructor($$source: Partial<UploadSession> = {}) {
+        if (!("id" in $$source)) this["id"] = "";
+        if (!("startedAt" in $$source)) this["startedAt"] = 0;
+        if (!("finishedAt" in $$source)) this["finishedAt"] = 0;
+        if (!("account" in $$source)) this["account"] = "";
+        if (!("albumName" in $$source)) this["albumName"] = "";
+        if (!("totalFiles" in $$source)) this["totalFiles"] = 0;
+        if (!("successCount" in $$source)) this["successCount"] = 0;
+        if (!("failCount" in $$source)) this["failCount"] = 0;
+        if (!("skippedCount" in $$source)) this["skippedCount"] = 0;
+        if (!("totalBytes" in $$source)) this["totalBytes"] = 0;
+        if ("items" in $$source) this["items"] = $$source["items"];
+        Object.assign(this, $$source);
+    }
+
+    static createFrom($$source: any = {}): UploadSession {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("items" in $$parsedSource && Array.isArray($$parsedSource["items"])) {
+            $$parsedSource["items"] = $$parsedSource["items"].map(UploadSessionItem.createFrom);
+        }
+        return new UploadSession($$parsedSource as Partial<UploadSession>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = AccountSummary.createFrom;
 const $$createType1 = $Create.Array($$createType0);

@@ -143,7 +143,28 @@ export function RemoveAutoBackupFolder(path: string): $CancellablePromise<string
     return $Call.ByName("app/core.ConfigManager.RemoveAutoBackupFolder", path);
 }
 
+export function GetUploadHistory(): $CancellablePromise<$models.UploadSession[]> {
+    return $Call.ByName("app/core.ConfigManager.GetUploadHistory").then(($result: any) => {
+        return $$createTypeUploadSessionList($result);
+    });
+}
+
+export function GetUploadSessionDetails(sessionId: string): $CancellablePromise<$models.UploadSession | null> {
+    return $Call.ByName("app/core.ConfigManager.GetUploadSessionDetails", sessionId).then(($result: any) => {
+        return $result ? $models.UploadSession.createFrom($result) : null;
+    });
+}
+
+export function ClearUploadHistory(): $CancellablePromise<void> {
+    return $Call.ByName("app/core.ConfigManager.ClearUploadHistory");
+}
+
+export function ExportUploadSessionCSV(sessionId: string): $CancellablePromise<string> {
+    return $Call.ByName("app/core.ConfigManager.ExportUploadSessionCSV", sessionId);
+}
+
 // Private type creation functions
 const $$createType0 = $models.AccountsState.createFrom;
 const $$createType1 = $models.Preferences.createFrom;
 const $$createType2 = $models.AutoBackupConfig.createFrom;
+const $$createTypeUploadSessionList = $Create.Array($models.UploadSession.createFrom);

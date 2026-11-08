@@ -26,8 +26,8 @@ func TestDatabaseInitAndMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to query schema_migrations: %v", err)
 	}
-	if version != 1 {
-		t.Fatalf("expected migration version 1, got %d", version)
+	if version != 2 {
+		t.Fatalf("expected migration version 2, got %d", version)
 	}
 
 	// Verify re-opening database succeeds idempotently

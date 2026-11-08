@@ -159,6 +159,53 @@ func runMigrations(db *sql.DB) error {
 		}
 	}
 
+	// Migration 2: upload_sessions and upload_session_items tables
+	if currentVersion < 2 {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer func() { _ = tx.Rollback() }()
+
+		_, err = tx.Exec(`
+			CREATE TABLE IF NOT EXISTS upload_sessions (
+				id TEXT PRIMARY KEY,
+				started_at INTEGER NOT NULL,
+				finished_at INTEGER NOT NULL DEFAULT 0,
+				account TEXT NOT NULL DEFAULT '',
+				album_name TEXT NOT NULL DEFAULT '',
+				total_files INTEGER NOT NULL DEFAULT 0,
+				success_count INTEGER NOT NULL DEFAULT 0,
+				fail_count INTEGER NOT NULL DEFAULT 0,
+				skipped_count INTEGER NOT NULL DEFAULT 0,
+				total_bytes INTEGER NOT NULL DEFAULT 0
+			);
+			CREATE INDEX IF NOT EXISTS idx_upload_sessions_started ON upload_sessions(started_at DESC);
+
+			CREATE TABLE IF NOT EXISTS upload_session_items (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				session_id TEXT NOT NULL REFERENCES upload_sessions(id) ON DELETE CASCADE,
+				path TEXT NOT NULL,
+				file_name TEXT NOT NULL,
+				status TEXT NOT NULL,
+				error_message TEXT NOT NULL DEFAULT '',
+				media_key TEXT NOT NULL DEFAULT '',
+				size INTEGER NOT NULL DEFAULT 0,
+				created_at INTEGER NOT NULL
+			);
+			CREATE INDEX IF NOT EXISTS idx_upload_session_items_session ON upload_session_items(session_id);
+
+			INSERT INTO schema_migrations (version, applied_at) VALUES (2, unixepoch());
+		`)
+		if err != nil {
+			return fmt.Errorf("migration 2 failed: %w", err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("failed to commit migration 2: %w", err)
+		}
+	}
+
 	return nil
 }
 

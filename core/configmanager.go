@@ -255,6 +255,22 @@ func (g *ConfigManager) GetAlbumAutoMode() bool {
 	return AppConfig.Preferences.AlbumAutoMode
 }
 
+func (g *ConfigManager) GetUploadHistory() ([]UploadSession, error) {
+	return GetDefaultSessionHistory().ListSessions(50)
+}
+
+func (g *ConfigManager) GetUploadSessionDetails(sessionID string) (*UploadSession, error) {
+	return GetDefaultSessionHistory().GetSessionDetails(sessionID)
+}
+
+func (g *ConfigManager) ClearUploadHistory() error {
+	return GetDefaultSessionHistory().ClearSessions()
+}
+
+func (g *ConfigManager) ExportUploadSessionCSV(sessionID string) (string, error) {
+	return GetDefaultSessionHistory().ExportSessionCSV(sessionID)
+}
+
 func (g *ConfigManager) SetSetDateFromFilename(v bool) {
 	updateAppConfig(func(config *Config) {
 		config.Preferences.SetDateFromFilename = v
