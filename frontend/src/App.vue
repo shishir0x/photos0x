@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/sheet'
 import { useColorMode } from '@vueuse/core'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { UserPlus } from '@lucide/vue'
+import { UserPlus, X } from '@lucide/vue'
 import { ConfigManager } from '../bindings/app/core'
 import { Events } from '@wailsio/runtime'
 import Button from "./components/ui/button/Button.vue"
@@ -462,9 +462,19 @@ onUnmounted(() => {
 
           <div
             v-if="uploadState.uploadedFiles > 0 || uploadState.results.fail.length > 0"
-            class="flex flex-col items-center gap-2 border rounded-lg p-5 mt-5"
+            class="relative flex flex-col items-center gap-2 border rounded-lg p-5 mt-5 w-full max-w-xs"
+            style="--wails-draggable: none"
           >
-            <h2 class="text-l font-semibold select-none ">
+            <button
+              type="button"
+              class="absolute top-3 right-3 p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+              title="Clear results"
+              aria-label="Clear upload results"
+              @click="uploadManager.clearResults()"
+            >
+              <X class="size-4" />
+            </button>
+            <h2 class="text-base font-semibold select-none">
               Upload Results
             </h2>
             <Label class="text-muted-foreground">Successful: {{ uploadState.results.success.length }}</Label>

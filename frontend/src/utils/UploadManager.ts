@@ -113,6 +113,7 @@ class UploadManager {
   private constructor() {
     // Bind all methods to ensure 'this' context is preserved
     this.resetUploadResults = this.resetUploadResults.bind(this);
+    this.clearResults = this.clearResults.bind(this);
     this.cancelUpload = this.cancelUpload.bind(this);
     this.copyResultsAsJson = this.copyResultsAsJson.bind(this);
 
@@ -282,6 +283,18 @@ class UploadManager {
     this.state.results.fail = [];
     this.state.results.skipped = [];
     this.state.results.warnings = [];
+  }
+
+  public clearResults() {
+    this.resetUploadResults();
+    this.state.uploadedFiles = 0;
+    this.state.totalFiles = 0;
+    this.state.uploadedBytes = 0;
+    this.state.totalBytes = 0;
+    this.state.warnings = [];
+    this.state.threads.clear();
+    this.state.albumStatus = null;
+    this.state.isCreatingAlbum = false;
   }
 
   public cancelUpload() {
