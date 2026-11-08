@@ -59,15 +59,7 @@ func runGUI() {
 		},
 		Windows: application.WindowsOptions{
 			DisableQuitOnLastWindowClosed: true,
-			WebviewUserDataPath: func() string {
-				dir, err := os.UserConfigDir()
-				if err != nil {
-					dir = os.Getenv("APPDATA")
-				}
-				dataDir := filepath.Join(dir, "photos0x", "webview")
-				_ = os.MkdirAll(dataDir, 0o755)
-				return dataDir
-			}(),
+			WebviewUserDataPath:           getWebviewUserDataPath(),
 		},
 		Linux: application.LinuxOptions{
 			DisableQuitOnLastWindowClosed: true,
@@ -267,4 +259,49 @@ func normalizeFrontendDevServerURL() {
 	if value != os.Getenv(envName) {
 		_ = os.Setenv(envName, value)
 	}
+}
+
+// getWebviewUserDataPath determines and validates a dedicated, writable directory for WebView2 runtime data.
+// It prioritizes %APPDATA%\photos0x\webview, %LOCALAPPDATA%\photos0x\webview, and falls back to %TEMP%\photos0x\webview,
+// performing an active write test to guarantee Edge WebView2 will not fail with data directory errors.
+func getWebviewUserDataPath() string {
+	// Clean up legacy erroneous directory created by unconfigured Wails binaries if present
+	if appData := os.Getenv("APPDATA"); appData != "" {
+		legacyPath := filepath.Join(appData, "photos0x.exe")
+		if fi, err := os.Stat(legacyPath); err == nil && fi.IsDir() {
+			_ = os.RemoveAll(legacyPath)
+		}
+	}
+
+	candidates := make([]string, 0, 4)
+	if dir, err := os.UserConfigDir(); err == nil && dir != "" {
+		candidates = append(candidates, filepath.Join(dir, "photos0x", "webview"))
+	}
+	if appData := os.Getenv("APPDATA"); appData != "" {
+		candidates = append(candidates, filepath.Join(appData, "photos0x", "webview"))
+	}
+	if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+		candidates = append(candidates, filepath.Join(localAppData, "photos0x", "webview"))
+	}
+	candidates = append(candidates, filepath.Join(os.TempDir(), "photos0x", "webview"))
+
+	seen := make(map[string]bool)
+	for _, path := range candidates {
+		cleaned := filepath.Clean(path)
+		if seen[cleaned] {
+			continue
+		}
+		seen[cleaned] = true
+
+		if err := os.MkdirAll(cleaned, 0o755); err != nil {
+			continue
+		}
+		testFile := filepath.Join(cleaned, ".writetest")
+		if err := os.WriteFile(testFile, []byte("ok"), 0o644); err == nil {
+			_ = os.Remove(testFile)
+			return cleaned
+		}
+	}
+
+	return ""
 }

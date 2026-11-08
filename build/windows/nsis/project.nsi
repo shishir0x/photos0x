@@ -19,16 +19,14 @@ Unicode true
 ####
 ## The following information is taken from the wails_tools.nsh file, but they can be overwritten here.
 ####
-## !define INFO_PROJECTNAME    "my-project" # Default "gotohp"
-## !define INFO_COMPANYNAME    "My Company" # Default "My Company"
-## !define INFO_PRODUCTNAME    "My Product Name" # Default "My Product"
-## !define INFO_PRODUCTVERSION "1.0.0"     # Default "0.1.0"
-## !define INFO_COPYRIGHT      "(c) Now, My Company" # Default "© now, My Company"
-###
-## !define PRODUCT_EXECUTABLE  "Application.exe"      # Default "${INFO_PROJECTNAME}.exe"
-## !define UNINST_KEY_NAME     "UninstKeyInRegistry"  # Default "${INFO_COMPANYNAME}${INFO_PRODUCTNAME}"
-####
-## !define REQUEST_EXECUTION_LEVEL "admin"            # Default "admin"  see also https://nsis.sourceforge.io/Docs/Chapter4.html
+!define INFO_PROJECTNAME    "photos0x"
+!define INFO_COMPANYNAME    "shishir0x"
+!define INFO_PRODUCTNAME    "photos0x"
+!define INFO_PRODUCTVERSION "0.12.0"
+!define INFO_COPYRIGHT      "© 2026, shishir0x"
+!define PRODUCT_EXECUTABLE  "photos0x.exe"
+!define UNINST_KEY_NAME     "shishir0xphotos0x"
+!define REQUEST_EXECUTION_LEVEL "admin"
 ####
 ## Include the wails tools
 ####
@@ -99,7 +97,8 @@ SectionEnd
 Section "uninstall" 
     !insertmacro wails.setShellContext
 
-    RMDir /r "$AppData\${PRODUCT_EXECUTABLE}" # Remove the WebView2 DataPath
+    RMDir /r "$AppData\photos0x" # Remove the application and WebView2 DataPath
+    RMDir /r "$AppData\${PRODUCT_EXECUTABLE}" # Remove any legacy WebView2 DataPath
 
     RMDir /r $INSTDIR
 
