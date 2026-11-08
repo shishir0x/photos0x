@@ -53,3 +53,4 @@ func TestUploadManagerPauseResume(t *testing.T) {
 		t.Fatal("waitIfPaused did not unblock after Resume()")
 	}
 }
+

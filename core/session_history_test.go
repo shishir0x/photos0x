@@ -98,3 +98,4 @@ func TestSessionHistoryStore(t *testing.T) {
 		t.Fatalf("expected 0 sessions after clear, got %d", len(sessionsAfterClear))
 	}
 }
+

@@ -51,3 +51,4 @@ func TestGenerateThumbnail(t *testing.T) {
 		t.Fatalf("expected empty thumbnail for missing file, got %s", thumbMissing)
 	}
 }
+

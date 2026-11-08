@@ -30,3 +30,4 @@ func TestGetWebviewUserDataPath(t *testing.T) {
 	}
 	_ = os.Remove(testFile)
 }
+

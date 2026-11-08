@@ -258,3 +258,4 @@ function formatBytes(bytes: number): string {
     </ScrollArea>
   </div>
 </template>
+
