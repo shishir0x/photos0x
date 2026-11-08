@@ -224,6 +224,7 @@ type ThreadStatus struct {
 	Status        string `json:"Status"` // "idle", "hashing", "checking", "uploading", "finalizing", "completed", "skipped", "error"
 	FilePath      string `json:"FilePath"`
 	FileName      string `json:"FileName"`
+	Thumbnail     string `json:"Thumbnail,omitempty"`
 	Message       string `json:"Message"`
 	BytesUploaded int64  `json:"BytesUploaded"`
 	BytesTotal    int64  `json:"BytesTotal"`
@@ -687,12 +688,14 @@ func uploadSingleFile(ctx context.Context, api *Api, filePath string, opts Uploa
 	}
 
 	// Stage 1: Hashing
+	thumbnail := GenerateThumbnail(filePath, 48)
 	reporter.ThreadStatus(ThreadStatus{
-		WorkerID: workerID,
-		Status:   "hashing",
-		FilePath: filePath,
-		FileName: fileName,
-		Message:  "Hashing...",
+		WorkerID:  workerID,
+		Status:    "hashing",
+		FilePath:  filePath,
+		FileName:  fileName,
+		Thumbnail: thumbnail,
+		Message:   "Hashing...",
 	})
 
 	sha1_hash_bytes, err := CalculateSHA1(ctx, filePath)
@@ -705,31 +708,34 @@ func uploadSingleFile(ctx context.Context, api *Api, filePath string, opts Uploa
 	// Stage 2: Checking if exists in library
 	if !opts.ForceUpload {
 		reporter.ThreadStatus(ThreadStatus{
-			WorkerID: workerID,
-			Status:   "checking",
-			FilePath: filePath,
-			FileName: fileName,
-			Message:  "Checking if file exists in library...",
+			WorkerID:  workerID,
+			Status:    "checking",
+			FilePath:  filePath,
+			FileName:  fileName,
+			Thumbnail: thumbnail,
+			Message:   "Checking if file exists in library...",
 		})
 
 		mediakey, err = api.FindRemoteMediaByHash(sha1_hash_bytes)
 		if err != nil {
 			// Non-fatal: log via callback and continue with upload
 			reporter.ThreadStatus(ThreadStatus{
-				WorkerID: workerID,
-				Status:   "checking",
-				FilePath: filePath,
-				FileName: fileName,
-				Message:  fmt.Sprintf("Hash check warning: %v, proceeding with upload", err),
+				WorkerID:  workerID,
+				Status:    "checking",
+				FilePath:  filePath,
+				FileName:  fileName,
+				Thumbnail: thumbnail,
+				Message:   fmt.Sprintf("Hash check warning: %v, proceeding with upload", err),
 			})
 		}
 		if len(mediakey) > 0 {
 			reporter.ThreadStatus(ThreadStatus{
-				WorkerID: workerID,
-				Status:   "completed",
-				FilePath: filePath,
-				FileName: fileName,
-				Message:  "Already in library",
+				WorkerID:  workerID,
+				Status:    "completed",
+				FilePath:  filePath,
+				FileName:  fileName,
+				Thumbnail: thumbnail,
+				Message:   "Already in library",
 			})
 			if opts.DeleteFromHost {
 				if err := os.Remove(filePath); err != nil {
@@ -752,6 +758,7 @@ func uploadSingleFile(ctx context.Context, api *Api, filePath string, opts Uploa
 		Status:        "uploading",
 		FilePath:      filePath,
 		FileName:      fileName,
+		Thumbnail:     thumbnail,
 		Message:       "Uploading...",
 		BytesUploaded: 0,
 		BytesTotal:    fileSize,
@@ -773,6 +780,7 @@ func uploadSingleFile(ctx context.Context, api *Api, filePath string, opts Uploa
 			Status:        "uploading",
 			FilePath:      filePath,
 			FileName:      fileName,
+			Thumbnail:     thumbnail,
 			Message:       message,
 			BytesUploaded: bytesUploaded,
 			BytesTotal:    bytesTotal,
@@ -798,11 +806,12 @@ func uploadSingleFile(ctx context.Context, api *Api, filePath string, opts Uploa
 
 	// Stage 4: Finalizing
 	reporter.ThreadStatus(ThreadStatus{
-		WorkerID: workerID,
-		Status:   "finalizing",
-		FilePath: filePath,
-		FileName: fileName,
-		Message:  "Committing upload...",
+		WorkerID:  workerID,
+		Status:    "finalizing",
+		FilePath:  filePath,
+		FileName:  fileName,
+		Thumbnail: thumbnail,
+		Message:   "Committing upload...",
 	})
 
 	mediaKey, err := api.CommitUpload(commitToken, fileInfo.Name(), sha1_hash_bytes, uploadTimestamp)

@@ -83,6 +83,12 @@ const statusMessage = computed(() => props.thread.Message.replace(/^Error:\s*/, 
   <div class="px-2.5 py-2 bg-card border rounded-md">
     <!-- Top row: status badge + filename + cancel button -->
     <div class="flex items-center gap-2 mb-1">
+      <img
+        v-if="thread.Thumbnail"
+        :src="thread.Thumbnail"
+        alt=""
+        class="size-6 rounded object-cover shrink-0 border border-border/60"
+      />
       <span 
         :class="[
           'text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0',

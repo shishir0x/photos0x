@@ -10,6 +10,7 @@ export interface ThreadStatus {
   Status: string;
   FilePath: string;
   FileName: string;
+  Thumbnail?: string;
   Message: string;
   BytesUploaded: number;
   BytesTotal: number;
