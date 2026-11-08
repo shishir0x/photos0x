@@ -160,7 +160,16 @@ func runMigrations(db *sql.DB) error {
 	}
 
 	// Migration 2: upload_sessions and upload_session_items tables
-	if currentVersion < 2 {
+	// Also defensively check sqlite_master to heal databases where version 2 was stamped
+	// by an earlier experimental build before upload_sessions was introduced.
+	var hasUploadSessions bool
+	var tblName string
+	_ = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='upload_sessions';").Scan(&tblName)
+	if tblName == "upload_sessions" {
+		hasUploadSessions = true
+	}
+
+	if currentVersion < 3 || !hasUploadSessions {
 		tx, err := db.Begin()
 		if err != nil {
 			return err
@@ -195,14 +204,14 @@ func runMigrations(db *sql.DB) error {
 			);
 			CREATE INDEX IF NOT EXISTS idx_upload_session_items_session ON upload_session_items(session_id);
 
-			INSERT INTO schema_migrations (version, applied_at) VALUES (2, unixepoch());
+			INSERT OR REPLACE INTO schema_migrations (version, applied_at) VALUES (3, unixepoch());
 		`)
 		if err != nil {
-			return fmt.Errorf("migration 2 failed: %w", err)
+			return fmt.Errorf("migration upload_sessions failed: %w", err)
 		}
 
 		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("failed to commit migration 2: %w", err)
+			return fmt.Errorf("failed to commit upload_sessions migration: %w", err)
 		}
 	}
 

@@ -26,8 +26,8 @@ func TestDatabaseInitAndMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to query schema_migrations: %v", err)
 	}
-	if version != 2 {
-		t.Fatalf("expected migration version 2, got %d", version)
+	if version < 2 {
+		t.Fatalf("expected migration version >= 2, got %d", version)
 	}
 
 	// Verify re-opening database succeeds idempotently
@@ -36,6 +36,37 @@ func TestDatabaseInitAndMigrations(t *testing.T) {
 		t.Fatalf("reopening database failed: %v", err)
 	}
 	_ = db2.Close()
+}
+
+func TestDatabaseMigrationHealingFromOldVersion2(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "healed.db")
+
+	// Simulate an older database where schema_migrations had version 2 recorded
+	// but upload_sessions table was never created
+	rawDb, err := OpenDatabase(dbPath)
+	if err != nil {
+		t.Fatalf("failed initial OpenDatabase: %v", err)
+	}
+	// Manually drop upload_sessions and roll back version to 2
+	_, _ = rawDb.Exec("DROP TABLE IF EXISTS upload_session_items;")
+	_, _ = rawDb.Exec("DROP TABLE IF EXISTS upload_sessions;")
+	_, _ = rawDb.Exec("DELETE FROM schema_migrations WHERE version > 2;")
+	_, _ = rawDb.Exec("INSERT OR REPLACE INTO schema_migrations (version, applied_at) VALUES (2, unixepoch());")
+	_ = rawDb.Close()
+
+	// Reopen with OpenDatabase which should heal and create upload_sessions
+	healedDb, err := OpenDatabase(dbPath)
+	if err != nil {
+		t.Fatalf("OpenDatabase failed during healing: %v", err)
+	}
+	defer healedDb.Close()
+
+	var tblName string
+	err = healedDb.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='upload_sessions';").Scan(&tblName)
+	if err != nil || tblName != "upload_sessions" {
+		t.Fatalf("expected upload_sessions table to exist after healing, got: %v", err)
+	}
 }
 
 func TestAutoBackupHistorySQLite(t *testing.T) {

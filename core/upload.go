@@ -387,17 +387,25 @@ func (m *UploadManager) Upload(paths []string, opts UploadOptions) bool {
 			})
 		}
 
-		_ = GetDefaultSessionHistory().RecordSession(UploadSession{
+		var account string
+		configMu.RLock()
+		account = AppConfig.Account.Selected
+		configMu.RUnlock()
+
+		if err := GetDefaultSessionHistory().RecordSession(UploadSession{
 			ID:           sessionID,
 			StartedAt:    sessionStartTime,
 			FinishedAt:   time.Now().Unix(),
+			Account:      account,
 			AlbumName:    opts.AlbumName,
 			TotalFiles:   len(workItems),
 			SuccessCount: successCount,
 			FailCount:    failCount,
 			SkippedCount: skippedCount,
 			TotalBytes:   totalBytes,
-		}, sessionItems)
+		}, sessionItems); err != nil {
+			m.logger.Error("failed to record upload session history", "err", err)
+		}
 
 		m.logger.Info("upload complete", "successful", len(successfulUploads),
 			"albumName", opts.AlbumName, "albumAutoMode", opts.AlbumAutoMode)
@@ -405,6 +413,10 @@ func (m *UploadManager) Upload(paths []string, opts UploadOptions) bool {
 		if len(successfulUploads) > 0 {
 			m.handleAlbumCreation(successfulUploads, opts.AlbumName, opts.AlbumAutoMode)
 		}
+
+		// Allow the frontend a brief moment to process the final FileResult and render
+		// 100% completion before emitting UploadStop.
+		time.Sleep(300 * time.Millisecond)
 
 		m.finish()
 	}()
@@ -965,63 +977,68 @@ func (m *UploadManager) runWorker(workerID int, workChan <-chan UploadWorkItem, 
 					FileName: filepath.Base(path),
 					Message:  "Upload cancelled by user",
 				})
-			} else if opts.OnFileUploaded != nil && (err == nil || mediaKey != "" || skipped) {
-				for _, p := range paths {
-					if info, statErr := os.Stat(p); statErr == nil {
-						opts.OnFileUploaded(p, info.Size(), info.ModTime().Unix())
+			} else {
+				if opts.OnFileUploaded != nil && (err == nil || mediaKey != "" || skipped) {
+					for _, p := range paths {
+						if info, statErr := os.Stat(p); statErr == nil {
+							opts.OnFileUploaded(p, info.Size(), info.ModTime().Unix())
+						}
 					}
 				}
-			} else if opts.OnFileFailed != nil && err != nil {
-				for _, p := range paths {
-					opts.OnFileFailed(p, err)
+				if opts.OnFileFailed != nil && err != nil {
+					for _, p := range paths {
+						opts.OnFileFailed(p, err)
+					}
 				}
-			} else if err != nil && mediaKey != "" {
-				results <- FileUploadResult{IsLivePhoto: isLivePhoto, Path: path, Paths: paths, MediaKey: mediaKey}
-				m.reporter.Warning(PreflightWarning{
-					Paths:   paths,
-					Code:    "local-cleanup-failed",
-					Message: err.Error(),
-				})
-				m.reporter.ThreadStatus(ThreadStatus{
-					WorkerID: workerID,
-					Status:   "completed",
-					FilePath: path,
-					FileName: filepath.Base(path),
-					Message:  fmt.Sprintf("Uploaded, but local cleanup failed: %v", err),
-				})
-			} else if err != nil {
-				results <- FileUploadResult{IsError: true, IsLivePhoto: isLivePhoto, Error: err, ErrorMessage: err.Error(), Path: path, Paths: paths}
-				m.reporter.ThreadStatus(ThreadStatus{
-					WorkerID: workerID,
-					Status:   "error",
-					FilePath: path,
-					FileName: filepath.Base(path),
-					Message:  fmt.Sprintf("Error: %v", err),
-				})
-			} else if skipped {
-				skipCode := "remote-duplicate"
-				skipReason := "Skipped because this file already exists remotely"
-				if isLivePhoto {
-					skipCode = "remote-live-photo-component-exists"
-					skipReason = "Skipped because a Live Photo component already exists remotely"
+
+				if err != nil && mediaKey != "" {
+					results <- FileUploadResult{IsLivePhoto: isLivePhoto, Path: path, Paths: paths, MediaKey: mediaKey}
+					m.reporter.Warning(PreflightWarning{
+						Paths:   paths,
+						Code:    "local-cleanup-failed",
+						Message: err.Error(),
+					})
+					m.reporter.ThreadStatus(ThreadStatus{
+						WorkerID: workerID,
+						Status:   "completed",
+						FilePath: path,
+						FileName: filepath.Base(path),
+						Message:  fmt.Sprintf("Uploaded, but local cleanup failed: %v", err),
+					})
+				} else if err != nil {
+					results <- FileUploadResult{IsError: true, IsLivePhoto: isLivePhoto, Error: err, ErrorMessage: err.Error(), Path: path, Paths: paths}
+					m.reporter.ThreadStatus(ThreadStatus{
+						WorkerID: workerID,
+						Status:   "error",
+						FilePath: path,
+						FileName: filepath.Base(path),
+						Message:  fmt.Sprintf("Error: %v", err),
+					})
+				} else if skipped {
+					skipCode := "remote-duplicate"
+					skipReason := "Skipped because this file already exists remotely"
+					if isLivePhoto {
+						skipCode = "remote-live-photo-component-exists"
+						skipReason = "Skipped because a Live Photo component already exists remotely"
+					}
+					results <- FileUploadResult{
+						IsLivePhoto: isLivePhoto,
+						Skipped:     true,
+						SkipCode:    skipCode,
+						SkipReason:  skipReason,
+						Path:        path,
+						Paths:       paths,
+					}
+				} else {
+					results <- FileUploadResult{IsLivePhoto: isLivePhoto, Path: path, Paths: paths, MediaKey: mediaKey}
+					m.reporter.ThreadStatus(ThreadStatus{
+						WorkerID: workerID,
+						Status:   "completed",
+						FilePath: path,
+						FileName: filepath.Base(path),
+						Message:  "Completed",
+					})
 				}
-				results <- FileUploadResult{
-					IsLivePhoto: isLivePhoto,
-					Skipped:     true,
-					SkipCode:    skipCode,
-					SkipReason:  skipReason,
-					Path:        path,
-					Paths:       paths,
-				}
-			} else {
-				results <- FileUploadResult{IsLivePhoto: isLivePhoto, Path: path, Paths: paths, MediaKey: mediaKey}
-				m.reporter.ThreadStatus(ThreadStatus{
-					WorkerID: workerID,
-					Status:   "completed",
-					FilePath: path,
-					FileName: filepath.Base(path),
-					Message:  "Completed",
-				})
 			}
 			cancelUpload()
 
