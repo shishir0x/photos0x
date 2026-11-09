@@ -174,8 +174,9 @@ class UploadManager {
     });
 
     // Handle thread status updates
-    Events.On("ThreadStatus", (event: { data: ThreadStatus }) => {
-      const thread = event.data;
+    Events.On("ThreadStatus", (event: any) => {
+      const thread: ThreadStatus = event?.data ?? event;
+      if (!thread) return;
       const prevThread = this.state.threads.get(thread.WorkerID);
 
       if (thread.Status === 'uploading' && thread.FilePath && thread.BytesTotal > 0) {
@@ -191,11 +192,13 @@ class UploadManager {
     });
 
     // Handle file status updates
-    Events.On("FileStatus", (event: { data: FileUploadResult }) => {
-      const { Path, Paths } = event.data;
+    Events.On("FileStatus", (event: any) => {
+      const data: FileUploadResult = event?.data ?? event;
+      if (!data) return;
+      const { Path, Paths } = data;
 
-      this.state.uploadedFiles += recordUploadResult(this.state.results, event.data);
-      if (!event.data.IsError) {
+      this.state.uploadedFiles += recordUploadResult(this.state.results, data);
+      if (!data.IsError) {
         const completedFileBytes = this.fileBytes.get(Path);
         if (completedFileBytes && completedFileBytes > 0) {
           this.completedBytes += completedFileBytes;

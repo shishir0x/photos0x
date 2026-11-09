@@ -536,8 +536,9 @@ export class UploadSession {
     }
 
     static createFrom($$source: any = {}): UploadSession {
+        if (!$$source) return new UploadSession();
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("items" in $$parsedSource && Array.isArray($$parsedSource["items"])) {
+        if ($$parsedSource && typeof $$parsedSource === 'object' && "items" in $$parsedSource && Array.isArray($$parsedSource["items"])) {
             $$parsedSource["items"] = $$parsedSource["items"].map(UploadSessionItem.createFrom);
         }
         return new UploadSession($$parsedSource as Partial<UploadSession>);

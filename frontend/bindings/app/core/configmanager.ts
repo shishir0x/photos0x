@@ -122,49 +122,52 @@ export function SetUseQuota(useQuota: boolean): $CancellablePromise<void> {
 }
 
 export function GetAutoBackup(): $CancellablePromise<$models.AutoBackupConfig> {
-    return $Call.ByName("app/core.ConfigManager.GetAutoBackup").then(($result: any) => {
+    return $Call.ByID(926327962).then(($result: any) => {
         return $$createType2($result);
     });
 }
 
 export function SetAutoBackupEnabled(enabled: boolean): $CancellablePromise<void> {
-    return $Call.ByName("app/core.ConfigManager.SetAutoBackupEnabled", enabled);
+    return $Call.ByID(2074538803, enabled);
 }
 
 export function SetAutoBackupInterval(minutes: number): $CancellablePromise<void> {
-    return $Call.ByName("app/core.ConfigManager.SetAutoBackupInterval", minutes);
+    return $Call.ByID(1645990227, minutes);
 }
 
 export function AddAutoBackupFolder(path: string): $CancellablePromise<string[]> {
-    return $Call.ByName("app/core.ConfigManager.AddAutoBackupFolder", path);
+    return $Call.ByID(402250737, path);
 }
 
 export function RemoveAutoBackupFolder(path: string): $CancellablePromise<string[]> {
-    return $Call.ByName("app/core.ConfigManager.RemoveAutoBackupFolder", path);
+    return $Call.ByID(3259039084, path);
 }
 
 export function GetUploadHistory(): $CancellablePromise<$models.UploadSession[]> {
-    return $Call.ByName("app/core.ConfigManager.GetUploadHistory").then(($result: any) => {
+    return $Call.ByID(1608362970).then(($result: any) => {
         return $$createTypeUploadSessionList($result);
     });
 }
 
 export function GetUploadSessionDetails(sessionId: string): $CancellablePromise<$models.UploadSession | null> {
-    return $Call.ByName("app/core.ConfigManager.GetUploadSessionDetails", sessionId).then(($result: any) => {
+    return $Call.ByID(3658049140, sessionId).then(($result: any) => {
         return $result ? $models.UploadSession.createFrom($result) : null;
     });
 }
 
 export function ClearUploadHistory(): $CancellablePromise<void> {
-    return $Call.ByName("app/core.ConfigManager.ClearUploadHistory");
+    return $Call.ByID(851591065);
 }
 
 export function ExportUploadSessionCSV(sessionId: string): $CancellablePromise<string> {
-    return $Call.ByName("app/core.ConfigManager.ExportUploadSessionCSV", sessionId);
+    return $Call.ByID(4074383194, sessionId);
 }
 
 // Private type creation functions
 const $$createType0 = $models.AccountsState.createFrom;
 const $$createType1 = $models.Preferences.createFrom;
 const $$createType2 = $models.AutoBackupConfig.createFrom;
-const $$createTypeUploadSessionList = $Create.Array($models.UploadSession.createFrom);
+const $$createTypeUploadSessionList = (source: any): $models.UploadSession[] => {
+    if (!source || !Array.isArray(source)) return [];
+    return source.map((s: any) => $models.UploadSession.createFrom(s));
+};

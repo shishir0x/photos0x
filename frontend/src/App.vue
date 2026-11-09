@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/sheet'
 import { useColorMode } from '@vueuse/core'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { UserPlus, X, History } from '@lucide/vue'
+import { UserPlus, X, History, RefreshCw, Settings } from '@lucide/vue'
 import { ConfigManager } from '../bindings/app/core'
 import { Events } from '@wailsio/runtime'
 import Button from "./components/ui/button/Button.vue"
@@ -132,6 +132,34 @@ async function removeCredentials(email: string) {
 
 function openAccountSetup() {
   isAccountSetupOpen.value = true
+}
+
+const isScanning = ref(false)
+
+async function triggerManualScan() {
+  if (isScanning.value) return
+  try {
+    const backupConfig = await ConfigManager.GetAutoBackup()
+    if (!backupConfig || !backupConfig.folders || backupConfig.folders.length === 0) {
+      toast.warning('No backup folders configured', {
+        description: 'Add backup folders in Settings to enable automatic scans.',
+      })
+      return
+    }
+
+    isScanning.value = true
+    Events.Emit('triggerAutoBackupScan', null)
+    const count = backupConfig.folders.length
+    toast.info(`Scanning ${count} backup folder${count > 1 ? 's' : ''}...`)
+
+    setTimeout(() => {
+      isScanning.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to trigger scan:', err)
+    isScanning.value = false
+    toast.error('Failed to trigger scan')
+  }
 }
 
 onMounted(async () => {
@@ -446,6 +474,16 @@ onUnmounted(() => {
           </div>
 
           <div class="flex gap-2 items-center">
+            <Button
+              variant="outline"
+              class="cursor-pointer select-none"
+              :disabled="isScanning"
+              @click="triggerManualScan"
+            >
+              <RefreshCw class="size-4 mr-1.5" :class="{ 'animate-spin': isScanning }" />
+              {{ isScanning ? 'Scanning...' : 'Scan' }}
+            </Button>
+
             <Sheet>
               <SheetTrigger>
                 <Button
@@ -467,6 +505,7 @@ onUnmounted(() => {
                   variant="outline"
                   class="cursor-pointer select-none"
                 >
+                  <Settings class="size-4 mr-1.5" />
                   Settings
                 </Button>
               </SheetTrigger>
