@@ -35,7 +35,15 @@ const threadsList = computed(() => {
 
 const progressPercent = computed(() => {
   if (state.totalFiles === 0) return 0
-  return Math.round((state.uploadedFiles / state.totalFiles) * 100)
+  if (state.uploadedFiles >= state.totalFiles) return 100
+
+  if (state.totalBytes > 0) {
+    const bytePercent = Math.floor((state.uploadedBytes / state.totalBytes) * 100)
+    return Math.min(99, Math.max(0, bytePercent))
+  }
+
+  const filePercent = Math.floor((state.uploadedFiles / state.totalFiles) * 100)
+  return Math.min(99, Math.max(0, filePercent))
 })
 
 // Format bytes to human readable

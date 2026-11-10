@@ -55,10 +55,13 @@ const statusConfig = computed(() => {
 })
 
 const uploadPercent = computed(() => {
+  if (props.thread.Status === 'finalizing') {
+    return 100
+  }
   if (props.thread.Status !== 'uploading' || !props.thread.BytesTotal) {
     return null
   }
-  return Math.round((props.thread.BytesUploaded / props.thread.BytesTotal) * 100)
+  return Math.min(100, Math.max(0, Math.round((props.thread.BytesUploaded / props.thread.BytesTotal) * 100)))
 })
 
 function formatBytes(bytes: number): string {
@@ -70,6 +73,9 @@ function formatBytes(bytes: number): string {
 }
 
 const fileSizeDisplay = computed(() => {
+  if (props.thread.Status === 'finalizing') {
+    return props.thread.Message || 'Committing...'
+  }
   if (props.thread.Status !== 'uploading' || !props.thread.BytesTotal) {
     return null
   }
