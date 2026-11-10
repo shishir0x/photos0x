@@ -3,26 +3,26 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "gotohp"
+name: "photos0x"
 arch: ${GOARCH}
 platform: "linux"
-version: "0.11.1"
+version: "0.13.0"
 section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
 description: "Google Photos Unofficial Client"
-vendor: "xob0t"
+vendor: "shishir0x"
 homepage: "https://wails.io"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/gotohp"
-    dst: "/usr/local/bin/gotohp"
+  - src: "./bin/photos0x"
+    dst: "/usr/local/bin/photos0x"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/gotohp.png"
-  - src: "./build/linux/gotohp.desktop"
-    dst: "/usr/share/applications/gotohp.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/photos0x.png"
+  - src: "./build/linux/photos0x.desktop"
+    dst: "/usr/share/applications/photos0x.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:
