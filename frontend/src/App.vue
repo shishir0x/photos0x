@@ -150,7 +150,10 @@ async function triggerManualScan() {
     isScanning.value = true
     Events.Emit('triggerAutoBackupScan', null)
     const count = backupConfig.folders.length
-    toast.info(`Scanning ${count} backup folder${count > 1 ? 's' : ''}...`)
+    toast.info(`Scanning ${count} backup folder${count > 1 ? 's' : ''}...`, {
+      duration: 3000,
+      closeButton: true,
+    })
 
     setTimeout(() => {
       isScanning.value = false
@@ -563,6 +566,9 @@ onUnmounted(() => {
       position="bottom-center"
       rich-colors
       expand
+      :close-button="true"
+      close-button-position="top-right"
+      :duration="3000"
       :visible-toasts="4"
     />
   </main>

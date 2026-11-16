@@ -12,6 +12,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { Info, FolderPlus, Trash2, RefreshCw } from '@lucide/vue'
+import { toast } from 'vue-sonner'
 
 import {
     NumberField,
@@ -151,6 +152,13 @@ async function removeFolder(path: string) {
 function triggerScanNow() {
     isScanningNow.value = true
     Events.Emit('triggerAutoBackupScan', null)
+    const count = autoBackupFolders.value.length
+    if (count > 0) {
+        toast.info(`Scanning ${count} backup folder${count > 1 ? 's' : ''}...`, {
+            duration: 3000,
+            closeButton: true,
+        })
+    }
     setTimeout(() => {
         isScanningNow.value = false
     }, 2000)
